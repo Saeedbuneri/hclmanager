@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>HCL - Sync Manager</title>
     <link rel="stylesheet" href="../assets/style.css">
+    <script src="../assets/shared.js"></script>
+    <script src="../assets/sidebar.js"></script>
     <style>
         .split-view {
             display: flex;
@@ -29,22 +31,8 @@
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <h2 style="text-align:center; padding: 20px; color: #38bdf8;">HCL Sync Engine</h2>
-        <ul>
-            <li><a href="dashboard.html">Dashboard Main</a></li>
-            <li><a href="new_booking.html">New Booking</a></li>
-            <li><a href="pending_results.html">Pending Results</a></li>
-            <li><a href="test_manager.html">Test Catalog Manager</a></li>
-            <li><a href="patient_history.html">Patient History</a></li>
-            <li><a href="sync_manager.html" class="active">Sync Details Manager</a></li>
-            <li><a href="admin_settings.html">System Settings</a></li>
-        </ul>
-        <div style="flex-grow: 1;"></div>
-        <ul>
-            <li><a href="login.html?clear=1" style="color: #ef4444; border-top: 1px solid #334155;">Logout</a></li>
-        </ul>
-    </div>
+    <div id="sidebar-container"></div>
+    <script>initSidebar('sync_manager.html')</script>
 
     <div class="main-content">
         <header>
@@ -172,7 +160,7 @@
 
                 // Display Firebase JSON
                 if(res.firebaseData) {
-                    document.getElementById('firebaseState').innerHTML = \<pre style="white-space: pre-wrap;">\</pre>\;
+                    document.getElementById('firebaseState').innerHTML = `<pre style="white-space: pre-wrap;">${JSON.stringify(res.firebaseData, null, 2)}</pre>`;
                 } else {
                     document.getElementById('firebaseState').innerHTML = "<span style='color:#ef4444;'>No matching document found in Firebase!</span>";
                 }
@@ -181,7 +169,7 @@
                 if(res.localBookings && res.localBookings.length > 0) {
                     let bHtml = '<ul>';
                     res.localBookings.forEach(b => {
-                        bHtml += \<li>Booking ID \ on \ - Status: \ - Access PIN: \</li>\;
+                        bHtml += `<li>Booking ID ${b.id} on ${new Date(b.date).toLocaleString()} - Status: ${b.status} - Access PIN: ${b.pin || "N/A"}</li>`;
                     });
                     bHtml += '</ul>';
                     document.getElementById('localBookingsState').innerHTML = bHtml;

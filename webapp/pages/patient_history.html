@@ -135,8 +135,8 @@
                                 <td><span class="status-badge ${isCompleted ? 'status-completed' : 'status-pending'}">${booking.status}</span></td>
                                 <td style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center; border-bottom: none;">
                                     <button onclick="window.api.openPrintWindow('db_id=${booking.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; ${!isCompleted ? 'opacity:0.5;' : ''}" ${!isCompleted ? 'disabled' : ''}>Print</button>
-                                    <button onclick="revertBookingLocal('${booking.id}')" style="background:#f59e0b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; ${!isCompleted ? 'opacity:0.5;' : ''}" ${!isCompleted ? 'disabled' : ''}>Edit</button>
-                                    <button onclick="deleteBookingLocal('${booking.id}')" style="background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">Delete</button>
+                                    
+                                    
                                 </td>
                             </tr>`;
                     });
@@ -184,7 +184,7 @@
                                 <td><span style="background:#e2e8f0; padding:2px 8px; border-radius:10px; font-weight:bold;">${p.total_visits}</span></td>
                                 <td>
                                     <button onclick="openPatientVisits('${p.patient_id}', '${p.patient_name}')" style="background:#8b5cf6; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Visits/Tests</button>
-                                    <button onclick="openEditPatientModal('${p.patient_id}', '${p.patient_name ? p.patient_name.replace(/'/g, "\\'") : ''}')" style="background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-left:5px;">Edit Patient</button>
+                                    
                                 </td>
                             </tr>`
                     });
@@ -289,26 +289,6 @@
         window.addEventListener('DOMContentLoaded', () => switchTab('tests'));
     
         // --- EDIT PATIENT LOGIC ---
-        async function openEditPatientModal(patientId) {
-            const syncDetails = await window.api.getManualSyncDetails(patientId);
-            if (syncDetails && syncDetails.success && syncDetails.localPatient) {
-                 const p = syncDetails.localPatient;
-                 document.getElementById('ep_id').value = p.id;
-                 document.getElementById('ep_name').value = p.name;
-                 document.getElementById('ep_age').value = p.age || '';
-                 document.getElementById('ep_gender').value = p.gender || 'Male';
-                 document.getElementById('ep_phone').value = p.phone || '';
-                 
-                 if (syncDetails.localBookings && syncDetails.localBookings.length > 0) {
-                     document.getElementById('ep_pin').value = syncDetails.localBookings[0].pin || '123456';
-                 }
-                 
-                 document.getElementById('editPatientModal').style.display = 'flex';
-            } else {
-                 alert('Could not pull patient details.');
-            }
-        }
-
         function closeEditPatientModal() {
             document.getElementById('editPatientModal').style.display = 'none';
         }
@@ -365,5 +345,5 @@
         </div>
     </div>
     
-</body>
+<script type="module" src="../assets/firebase_config.js"></script></body>
 </html>

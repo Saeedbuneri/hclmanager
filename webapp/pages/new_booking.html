@@ -98,6 +98,7 @@
 
         async function initTests() {
             allTests = await window.api.getTests();
+            if(!allTests) allTests = [];
             categories = ['Top Suggested', ...new Set(allTests.map(t => t.category || 'General'))];
             renderCategories();
             
@@ -241,14 +242,18 @@
             }
         }
 
-        initTests();
+        window.addEventListener('load', () => {
+            initTests();
 
-        // Populate referral datalist from past referrers
-        window.api.getReferralStats('all').then(rows => {
-            const dl = document.getElementById('referralList');
-            if(!dl) return;
-            rows.forEach(r => { const opt = document.createElement('option'); opt.value = r.referred_by; dl.appendChild(opt); });
-        }).catch(()=>{});
+            // Populate referral datalist from past referrers
+            if (window.api.getReferralStats) {
+                window.api.getReferralStats('all').then(rows => {
+                    const dl = document.getElementById('referralList');
+                    if(!dl) return;
+                    rows.forEach(r => { const opt = document.createElement('option'); opt.value = r.referred_by; dl.appendChild(opt); });
+                }).catch(()=>{});
+            }
+        });
 
         window.addEventListener('DOMContentLoaded', () => initSidebar('new_booking.html'));
 
@@ -341,7 +346,7 @@ document.addEventListener("keydown", function(e) {
     }
 });
 </script>
-</body>
+<script type="module" src="../assets/firebase_config.js"></script></body>
 
 <!-- Booking Confirmation Modal -->
 <div class="modal-overlay" id="confirmModal">

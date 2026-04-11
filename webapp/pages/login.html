@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>HCL Manager - Login</title>
+    <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body class="login-body">
+    <div class="login-card">
+        <h2>HCL Manager</h2>
+        <p>Login to access lab dashboard</p>
+        <div style="text-align: left;">
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button id="loginBtn">Login to System</button>
+        </div>
+        <p id="errorMsg" style="color: red; margin-top: 15px; font-size: 14px;"></p>
+    </div>
+
+    <script>
+        // Handle session logic
+        if (window.location.search.includes('clear=1')) {
+            localStorage.removeItem('isLoggedIn');
+            history.replaceState(null, '', 'login.html'); // clean URL
+        } else if (localStorage.getItem('isLoggedIn') === 'true') {
+            window.location.replace('dashboard.html');
+        }
+
+        document.addEventListener('keyup', (e) => { if(e.key === 'Enter') document.getElementById('loginBtn').click(); }); 
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            
+            const btn = document.getElementById('loginBtn');
+            btn.innerText = "Authenticating...";
+            btn.disabled = true;
+
+            const res = await window.api.login({username: u, password: p});
+            
+            if(res.success) {
+                localStorage.setItem('isLoggedIn', 'true'); 
+                window.location.href = 'dashboard.html';
+            } else {
+                document.getElementById('errorMsg').innerText = res.message;
+                btn.innerText = "Login to System";
+                btn.disabled = false;
+            }
+        });
+    </script>
+<script type="module" src="../assets/firebase_config.js"></script></body>
+</html>

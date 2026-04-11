@@ -2,8 +2,10 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>HCL - Test Catalog Manager</title>
+    <title>HCL – Test Catalog</title>
     <link rel="stylesheet" href="../assets/style.css">
+    <script src="../assets/shared.js"></script>
+    <script src="../assets/sidebar.js"></script>
     <style>
         .test-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 30px; }
         .test-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative; }
@@ -16,19 +18,8 @@
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <h2 style="text-align:center; padding: 20px; color: #38bdf8;">HCL Dashboard</h2>
-        <ul>
-            <li><a href="dashboard.html">Dashboard Main</a></li>
-            <li><a href="new_booking.html">New Booking</a></li>
-            <li><a href="pending_results.html">Pending Results</a></li>
-            <li><a href="test_manager.html" class="active">Test Catalog Manager</a></li>
-            <li><a href="patient_history.html">Patient History</a></li>
-            <li><a href="admin_settings.html">Admin Settings & Sync</a></li>
-        </ul>
-        <div style="flex-grow: 1;"></div>
-        <ul><li><a href="login.html?clear=1" style="color: #ef4444; border-top: 1px solid #334155;">Logout</a></li></ul>
-    </div>
+    <div id="sidebar-container"></div>
+    <script>initSidebar('test_manager.html')</script>
     
     <div class="main-content">
         <header>

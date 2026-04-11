@@ -126,3 +126,45 @@ ipcMain.handle('revertBooking', async (event, id) => {
 ipcMain.handle('forceFullSync', async () => {
   return await firebaseSync.forceFullSync();
 });
+
+// ── Inventory ──────────────────────────────────────────────────
+ipcMain.handle('getInventory', async () => db.getInventory());
+ipcMain.handle('saveInventoryItem', async (ev, item) => db.saveInventoryItem(item));
+ipcMain.handle('deleteInventoryItem', async (ev, id) => db.deleteInventoryItem(id));
+ipcMain.handle('adjustInventoryStock', async (ev, id, qty) => db.adjustInventoryStock(id, qty));
+ipcMain.handle('getLowStockItems', async () => db.getLowStockItems());
+
+// ── Dues / Payments ────────────────────────────────────────────
+ipcMain.handle('getDues', async () => db.getDues());
+ipcMain.handle('recordPayment', async (ev, booking_id, amount) => db.recordPayment(booking_id, amount));
+
+// ── Sync Log ───────────────────────────────────────────────────
+ipcMain.handle('getSyncLog', async () => db.getSyncLog());
+ipcMain.handle('clearSyncLog', async () => db.clearSyncLog());
+
+// ── Extended Analytics ─────────────────────────────────────────
+ipcMain.handle('getReferralStats', async (ev, filter) => db.getReferralStats(filter));
+ipcMain.handle('getRepeatPatientRate', async (ev, filter) => db.getRepeatPatientRate(filter));
+ipcMain.handle('getTestPopularityHeatmap', async (ev, days) => db.getTestPopularityHeatmap(days));
+ipcMain.handle('getMonthlySummary', async (ev, year, month) => db.getMonthlySummary(year, month));
+
+// ── Database Backup ────────────────────────────────────────────
+ipcMain.handle('backupDatabase', async () => {
+  try {
+    const fs = require('fs');
+    const src = require('path').join(app.getPath('userData'), 'hcl_local.sqlite');
+    const dir = require('path').join(require('os').homedir(), 'Desktop', 'HCL_Backups');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const ts  = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const dst = require('path').join(dir, 'hcl_backup_' + ts + '.sqlite');
+    fs.copyFileSync(src, dst);
+    return { success: true, path: dst };
+  } catch(e) { return { success: false, error: e.message }; }
+});
+
+// ── Updated saveBooking with referred_by ───────────────────────
+ipcMain.handle('saveBookingWithRef', async (ev, patient, tests, total, discount, referred_by) => {
+  // Pass referred_by via patient object extension
+  patient.referred_by = referred_by || '';
+  return db.saveBooking(patient, tests, total, discount);
+});

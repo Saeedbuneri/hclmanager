@@ -20,6 +20,27 @@ contextBridge.exposeInMainWorld(
       updateManualSyncDetails: (patientId, updates) => ipcRenderer.invoke('updateManualSyncDetails', patientId, updates),
       deleteBooking: (id) => ipcRenderer.invoke('deleteBooking', id),
       revertBooking: (id) => ipcRenderer.invoke('revertBooking', id),
-      forceFullSync: () => ipcRenderer.invoke('forceFullSync')
+      forceFullSync: () => ipcRenderer.invoke('forceFullSync'),
+      // Inventory
+      getInventory: () => ipcRenderer.invoke('getInventory'),
+      saveInventoryItem: (item) => ipcRenderer.invoke('saveInventoryItem', item),
+      deleteInventoryItem: (id) => ipcRenderer.invoke('deleteInventoryItem', id),
+      adjustInventoryStock: (id, qty) => ipcRenderer.invoke('adjustInventoryStock', id, qty),
+      getLowStockItems: () => ipcRenderer.invoke('getLowStockItems'),
+      // Dues / Payments
+      getDues: () => ipcRenderer.invoke('getDues'),
+      recordPayment: (booking_id, amount) => ipcRenderer.invoke('recordPayment', booking_id, amount),
+      // Sync Log
+      getSyncLog: () => ipcRenderer.invoke('getSyncLog'),
+      clearSyncLog: () => ipcRenderer.invoke('clearSyncLog'),
+      // Extended Analytics
+      getReferralStats: (filter) => ipcRenderer.invoke('getReferralStats', filter),
+      getRepeatPatientRate: (filter) => ipcRenderer.invoke('getRepeatPatientRate', filter),
+      getTestPopularityHeatmap: (days) => ipcRenderer.invoke('getTestPopularityHeatmap', days),
+      getMonthlySummary: (year, month) => ipcRenderer.invoke('getMonthlySummary', year, month),
+      // DB Backup
+      backupDatabase: () => ipcRenderer.invoke('backupDatabase'),
+      // Booking with referral
+      saveBookingWithRef: (patient, tests, total, discount, referred_by) => ipcRenderer.invoke('saveBookingWithRef', patient, tests, total, discount, referred_by),
   }
 );

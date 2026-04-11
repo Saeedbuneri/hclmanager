@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ur" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HCL لیبارٹری مینجمنٹ سسٹم</title>
+    <!-- Google Fonts for Best Urdu Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&family=Noto+Sans+Arabic:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #e0f2fe;
+            --secondary: #0f172a;
+            --accent: #f59e0b;
+            --text-main: #334155;
+            --text-light: #64748b;
+            --bg-body: #f8fafc;
+            --white: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Noto Sans Arabic', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.8;
+            font-size: 16px;
+        }
+
+        h1, h2 {
+            font-family: 'Noto Nastaliq Urdu', serif;
+            font-weight: 700;
+            line-height: 1.6;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        /* Hero Section */
+        .hero {
+            position: relative;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: var(--white);
+            padding: 120px 20px;
+            text-align: center;
+            border-bottom: 6px solid var(--primary);
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(14,165,233,0.1) 0%, transparent 60%);
+            z-index: 0;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .badge {
+            background: rgba(14, 165, 233, 0.2);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 700;
+            display: inline-block;
+            margin-bottom: 30px;
+        }
+
+        .hero h1 {
+            font-size: 55px;
+            margin-bottom: 25px;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 22px;
+            color: #cbd5e1;
+            margin-bottom: 40px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-group {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 16px 40px;
+            font-size: 20px;
+            font-weight: 700;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--white);
+            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(14, 165, 233, 0.5);
+            animation: none;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--white);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--white);
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-3px);
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(14, 165, 233, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+        }
+
+        /* Section Layout */
+        .section {
+            padding: 100px 20px;
+            max-width: 1250px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .section-header h2 {
+            font-size: 45px;
+            color: var(--secondary);
+            margin-bottom: 15px;
+        }
+
+        .section-header p {
+            font-size: 20px;
+            color: var(--text-light);
+        }
+
+        /* UI Showcase Grid */
+        .showcase-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 40px;
+        }
+
+        .showcase-card {
+            background: var(--white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.06);
+            border: 1px solid var(--border);
+            transition: all 0.4s ease;
+        }
+
+        .showcase-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.1);
+            border-color: var(--primary);
+        }
+
+        .showcase-img-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #e2e8f0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .showcase-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .showcase-card:hover .showcase-img {
+            transform: scale(1.05);
+        }
+
+        .showcase-content {
+            padding: 30px;
+            border-top: 1px solid var(--border);
+        }
+
+        .showcase-content h3 {
+            font-size: 24px;
+            color: var(--secondary);
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+        
+        .showcase-content p {
+            color: var(--text-light);
+            font-size: 17px;
+            line-height: 1.7;
+        }
+
+        .feature-tag {
+            display: inline-block;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-top: 15px;
+            margin-left: 8px;
+        }
+
+        /* Features List Section */
+        .features-wrapper {
+            background: var(--white);
+            padding: 100px 20px;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .feature-list-grid {
+            max-width: 1250px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-box {
+            background: var(--bg-body);
+            padding: 40px 30px;
+            border-radius: 12px;
+            border-right: 5px solid var(--primary);
+            transition: all 0.3s;
+        }
+
+        .feature-box:hover {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            background: var(--white);
+        }
+
+        .feature-icon {
+            font-size: 40px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .feature-box h3 {
+            font-size: 22px;
+            margin-bottom: 15px;
+            color: var(--secondary);
+            font-weight: 800;
+        }
+
+        .feature-box p {
+            color: var(--text-light);
+            font-size: 16px;
+        }
+
+        /* Footer CTA */
+        .footer-cta {
+            background: var(--secondary);
+            color: var(--white);
+            text-align: center;
+            padding: 100px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .footer-cta h2 {
+            font-size: 50px;
+            margin-bottom: 20px;
+            color: var(--white);
+        }
+
+        .footer-cta p {
+            font-size: 22px;
+            color: #94a3b8;
+            margin-bottom: 40px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- HERO SECTION -->
+    <header class="hero">
+        <div class="hero-content">
+            <span class="badge">ورژن 2.0 - اب مزید تیز اور جدید 🚀</span>
+            <h1>پاکستان کا بہترین کلینیکل لیبارٹری مینجمنٹ سسٹم</h1>
+            <p>ایک انتہائی تیز، آف لائن کام کرنے والی جدید لیبارٹری ایپلیکیشن۔ انٹرنیٹ کے بغیر بھی بہترین کارکردگی، مکمل بلنگ، سمارٹ رپورٹنگ، اور کلاؤڈ سنک ٹیکنالوجی کے ساتھ۔</p>
+            <div class="cta-group">
+                <a href="#contact" class="btn btn-primary">ابھی خریدیے 🛒</a>
+                <a href="#showcase" class="btn btn-outline">ایپ دیکھیے 👀</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- APP SCREENSHOTS / UI SHOWCASE -->
+    <section class="section" id="showcase">
+        <div class="section-header">
+            <h2>خوبصورت اور جدید انٹرفیس</h2>
+            <p>ایک نظر میں ہماری ایپلیکیشن کے اہم فیچرز اور اسکرینز کا جائزہ لیں</p>
+        </div>
+        
+        <!-- UI INSTRUCTIONS FOR DEVELOPER:
+             To replace these placeholder images with actual screenshots of your app:
+             1. Take screenshots of your app using Windows Snipping Tool (Win + Shift + S).
+             2. Save them in an "images" folder inside your project.
+             3. Change the 'src' tags below from "https://placehold.co/..." to "images/dashboard.png" etc.
+        -->
+        <div class="showcase-grid">
+            
+            <div class="showcase-card">
+                <div class="showcase-img-container">
+                    <img src="https://placehold.co/800x450/0f172a/0ea5e9?text=Dashboard+UI" alt="Dashboard Hub" class="showcase-img">
+                </div>
+                <div class="showcase-content">
+                    <h3>جدید کمانڈ ڈیش بورڈ</h3>
+                    <p>روزانہ کی کل آمدنی، مریضوں کی حاضری اور بقایا کام کا مکمل حساب ایک ہی جگہ پر حاصل کریں۔</p>
+                    <span class="feature-tag">لائیو اپڈیٹ</span>
+                    <span class="feature-tag">ڈارک موڈ</span>
+                </div>
+            </div>
+
+            <div class="showcase-card">
+                <div class="showcase-img-container">
+                    <img src="https://placehold.co/800x450/0f172a/0ea5e9?text=Booking+Screen" alt="Booking Module" class="showcase-img">
+                </div>
+                <div class="showcase-content">
+                    <h3>انتہائی تیز بلنگ سسٹم</h3>
+                    <p>مریض کی رجسٹریشن، ٹیسٹ کا انتخاب اور کسٹم ڈسکاؤنٹ پرنٹنگ! کی بورڈ شارٹ کٹس کے ساتھ رسید سیکنڈوں میں تیار۔</p>
+                    <span class="feature-tag">تھرمل پرنٹنگ</span>
+                </div>
+            </div>
+
+            <div class="showcase-card">
+                <div class="showcase-img-container">
+                    <img src="https://placehold.co/800x450/0f172a/0ea5e9?text=Intelligent+Data+Entry" alt="Data Entry" class="showcase-img">
+                </div>
+                <div class="showcase-content">
+                    <h3>سمارٹ کلینیکل ڈیٹا انٹری</h3>
+                    <p>ٹیسٹ رزلٹ لکھتے ہی ہائی (High) اور لو (Low) کی کلر کوڈڈ وارننگز۔ پرانی ہسٹری کا خودکار موازنہ اور آٹو سیو کی سہولت۔</p>
+                    <span class="feature-tag">OCR آٹو فِل</span>
+                </div>
+            </div>
+
+            <div class="showcase-card">
+                <div class="showcase-img-container">
+                    <img src="https://placehold.co/800x450/0f172a/0ea5e9?text=Advanced+Analytics" alt="Analytics" class="showcase-img">
+                </div>
+                <div class="showcase-content">
+                    <h3>بزنس اینالیٹکس (پرو)</h3>
+                    <p>ڈاکٹرز کے ریفرل اور کمیشن کا مکمل ٹریک، مہینے کے منافع کی پی ڈی ایف رپورٹ اور بقایا جات کی ریکوری۔</p>
+                    <span class="feature-tag">رپورٹ جنریٹر</span>
+                </div>
+            </div>
+
+            <div class="showcase-card">
+                <div class="showcase-img-container">
+                    <img src="https://placehold.co/800x450/0f172a/0ea5e9?text=Inventory+Tracker" alt="Inventory" class="showcase-img">
+                </div>
+                <div class="showcase-content">
+                    <h3>سٹاک اور انوینٹری ٹریکر</h3>
+                    <p>لیبارٹری کے اہم سامان اور کیمیکلز کا مکمل حساب۔ سٹاک کم ہونے پر سسٹم فوری طور پر پیلے یا سرخ رنگ کا الرٹ دیتا ہے۔</p>
+                    <span class="feature-tag">آٹو الرٹس</span>
+                </div>
+            </div>
+
+            <div class="showcase-card">
+                <div class="showcase-img-container">
+                    <img src="https://placehold.co/800x450/0f172a/0ea5e9?text=Online+Patient+Portal" alt="Patient Portal" class="showcase-img">
+                </div>
+                <div class="showcase-content">
+                    <h3>آن لائن پیشنٹ پورٹل</h3>
+                    <p>ایک پروفیشنل آن لائن ویب پورٹل جس کی مدد سے مریض گھر بیٹھے اپنے موبائل پر اپنی خوبصورت لیب رپورٹس دیکھ سکتے ہیں۔</p>
+                    <span class="feature-tag">Vercel کلاؤڈ</span>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- HIGHLIGHT FEATURES -->
+    <section class="features-wrapper">
+        <div class="section-header" style="margin-bottom: 50px;">
+            <h2>ہمارا سافٹ ویئر ہی کیوں؟</h2>
+            <p>ایسی خصوصیات جو آپ کے وقت اور پیسے دونوں کی بچت کرتی ہیں</p>
+        </div>
+        <div class="feature-list-grid">
+            
+            <div class="feature-box">
+                <span class="feature-icon">🌐</span>
+                <h3>انٹرنیٹ کے بغیر بھی زبردست</h3>
+                <p>ہماری آف لائن فرسٹ (Offline-First) ٹیکنالوجی کے باعث انٹرنیٹ منقطع ہونے پر بھی کام نہیں رکتا۔ جیسے ہی نیٹ چلتا ہے، سارا ڈیٹا خودبخود کلاؤڈ پر محفوظ ہو جاتا ہے۔</p>
+            </div>
+            
+            <div class="feature-box">
+                <span class="feature-icon">⚡</span>
+                <h3>آسان اور تیز ترین کی بورڈ نیویگیشن</h3>
+                <p>ماؤس کو بار بار چھونے کی ضرورت نہیں! صرف کی-بورڈ کے شارٹ کٹس (<kbd>Ctrl+B</kbd>، <kbd>Enter</kbd>) کی مدد سے اپنا کام 10 گنا زیادہ تیزی سے مکمل کریں۔</p>
+            </div>
+
+            <div class="feature-box">
+                <span class="feature-icon">📊</span>
+                <h3>مکمل الیکٹرانک ہسٹری (EMR)</h3>
+                <p>ایک بار رجسٹر ہونے والا مریض ہمیشہ کے لیے سسٹم میں محفوظ ہو جاتا ہے۔ کسی بھی پرانی رپورٹ کو 1-کلک پر دوبارہ پرنٹ کریں یا ہسٹری چیک کریں۔</p>
+            </div>
+
+            <div class="feature-box">
+                <span class="feature-icon">⚙️</span>
+                <h3>مکمل آزادی اور کسٹمائزیشن</h3>
+                <p>اپنی لیبریٹری کے مطابق ٹیسٹ اور ریفرنس رینجز کو خود سیٹ کریں۔ اپنے لیب کا نام، لوگو اور پتہ لگا کر برانڈڈ رسیدیں اور رپورٹس پرنٹ کریں۔</p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- FOOTER CTA -->
+    <footer class="footer-cta" id="contact">
+        <div style="position: relative; z-index: 10;">
+            <h2>اپنی لیبارٹری کو جدید بنانے کا وقت آ گیا ہے!</h2>
+            <p>آج ہی ڈیویلپر سے رابطہ کریں اور اپنی لیبریٹری کے لیے لائف ٹائم لائسنس خریدیں۔</p>
+            <br>
+            <a href="mailto:info@yourdomain.com" class="btn btn-primary" style="padding: 18px 50px; font-size: 24px;">ڈویلپر سے رابطہ کریں 📞</a>
+            
+            <div style="margin-top: 80px; font-size: 14px; color: #475569; border-top: 1px solid #1e293b; padding-top: 20px;">
+                &copy; 2026 HCL لیبارٹری مینجمنٹ سسٹم۔ جملہ حقوق محفوظ ہیں۔ ڈیویلپڈ بائی سعید۔
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

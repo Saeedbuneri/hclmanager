@@ -1,6 +1,6 @@
 const { initializeApp } = require('firebase/app');
 const { getFirestore, setDoc, getDoc, updateDoc, doc, collection, getDocs } = require('firebase/firestore');
-const { getAuth, createUserWithEmailAndPassword } = require('firebase/auth');
+const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } = require('firebase/auth');
 const dbLocal = require('../db/sqlite');
 
 const firebaseConfig = {
@@ -41,15 +41,13 @@ async function syncBookingsToOnline() {
             const password = strPin.padStart(6, '0');
             const email = patientId.toLowerCase() + '@lab.local';
             
-                        try {
+            try {
                 // Ensure patient can log in
-                const { signInWithEmailAndPassword } = require('firebase/auth');
                 await createUserWithEmailAndPassword(auth, email, password);
                 console.log(`Created Web Auth account for ${patientId}`);
             } catch (authErr) {
                 if (authErr.code === 'auth/email-already-in-use') {
                     try {
-                        const { signInWithEmailAndPassword } = require('firebase/auth');
                         await signInWithEmailAndPassword(auth, email, password);
                         console.log(`Signed in to Web Auth account for ${patientId}`);
                     } catch (e) {
@@ -67,6 +65,9 @@ async function syncBookingsToOnline() {
                 receipt_id: booking.id,
                 date: new Date(booking.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
                 timestamp: new Date(booking.date).getTime(),
+                total_amount: booking.total_amount || 0,
+                discount: booking.discount || 0,
+                status: booking.status || 'Pending',
                 test_names: [],
                 units_and_ranges: {},
                 test_results: {},
@@ -201,8 +202,9 @@ async function forceFullSync() {
         const colRef = collection(fsDb, "reports");
         const docSnapshots = await getDocs(colRef);
         const docs = [];
-        docSnapshots.forEach(doc => {
-            docs.push({ id: doc.id, data: doc.data() });
+        // Pass raw Firestore snapshots so importDatabaseFromFirebase can call doc.data() correctly
+        docSnapshots.forEach(docSnap => {
+            docs.push(docSnap);
         });
         
         await dbLocal.importDatabaseFromFirebase(docs);

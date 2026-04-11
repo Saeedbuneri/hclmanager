@@ -76,10 +76,18 @@ function init() {
         { name: "RBC", ref: "4.2 - 5.4", unit: "10^6/µL" },
         { name: "HGB", ref: "12.0 - 16.0", unit: "g/dL" },
         { name: "HCT", ref: "37.0 - 47.0", unit: "%" },
-        { name: "MCV", ref: "80.0 - 100.0", unit: "fl" },
+        { name: "MCV", ref: "80.0 - 100.0", unit: "fL" },
         { name: "MCH", ref: "27.0 - 31.0", unit: "pg" },
         { name: "MCHC", ref: "32.0 - 36.0", unit: "g/dL" },
-        { name: "Platelet Count (PLT)", ref: "150 - 400", unit: "10^3/µL" }
+        { name: "Platelet Count (PLT)", ref: "150 - 400", unit: "10^3/µL" },
+        { name: "Lymphocytes (LY)", ref: "1.0 - 4.0", unit: "10^3/µL" },
+        { name: "Monocytes (MO)", ref: "0.1 - 1.0", unit: "10^3/µL" },
+        { name: "Granulocytes (GR)", ref: "2.0 - 7.5", unit: "10^3/µL" },
+        { name: "RDW-CV", ref: "11.0 - 16.0", unit: "%" },
+        { name: "RDW-SD", ref: "35.0 - 56.0", unit: "fL" },
+        { name: "PCT", ref: "0.15 - 0.40", unit: "%" },
+        { name: "MPV", ref: "7.0 - 11.0", unit: "fL" },
+        { name: "PDW", ref: "15.0 - 17.0", unit: "%" }
       ];
 
       const bsParams = [

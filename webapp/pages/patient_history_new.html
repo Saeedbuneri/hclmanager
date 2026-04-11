@@ -2,13 +2,11 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>HCL – Patient History</title>
+    <title>Patient History</title>
     <link rel="stylesheet" href="../assets/style.css">
-    <script src="../assets/shared.js"></script>
-    <script src="../assets/sidebar.js"></script>
     <style>
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { padding: 10px 20px; background: #e2e8f0; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .tab-btn | padding: 10px 20px; background: #e2e8f0; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .tab-btn.active { background: #0ea5e9; color: white; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
@@ -32,8 +30,19 @@
     </style>
 </head>
 <body>
-    <div id="sidebar-container"></div>
-    <script>initSidebar('patient_history.html')</script>
+    <div class="sidebar">
+        <h2 style="text-align:center; padding: 20px; color: #38bdf8;">HCL Dashboard</h2>
+        <ul>
+            <li><a href="dashboard.html">Dashboard Main</a></li>
+            <li><a href="new_booking.html">New Booking</a></li>
+            <li><a href="pending_results.html">Pending Results</a></li>
+            <li><a href="test_manager.html">Test Catalog Manager</a></li>
+            <li><a href="patient_history.html" class="active">Patient History</a></li>
+            <li><a href="admin_settings.html">Admin Settings & Sync</a></li>
+        </ul>
+        <div style="flex-grow: 1;"></div>
+        <ul><li><a href="login.html?clear=1" style="color: #ef4444; border-top: 1px solid #334155;">Logout</a></li></ul>
+    </div>
     <div class="main-content">
         <header>
             <h1>Patient History</h1>
@@ -134,8 +143,8 @@
                                 <td style="font-weight:bold;">Rs. ${booking.total_amount}</td>
                                 <td><span class="status-badge ${isCompleted ? 'status-completed' : 'status-pending'}">${booking.status}</span></td>
                                 <td style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center; border-bottom: none;">
-                                    <button onclick="window.api.openPrintWindow('db_id=${booking.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; ${!isCompleted ? 'opacity:0.5;' : ''}" ${!isCompleted ? 'disabled' : ''}>Print</button>
-                                    <button onclick="revertBookingLocal('${booking.id}')" style="background:#f59e0b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; ${!isCompleted ? 'opacity:0.5;' : ''}" ${!isCompleted ? 'disabled' : ''}>Edit</button>
+                                    <button onclick="window.api.openPrintWindow({db_id: '${booking.id}'})" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" ${!isCompleted ? 'disabled opacity="0.5"' : ''}>Print</button> 
+                                    <button onclick="revertBookingLocal('${booking.id}')" style="background:#f59e0b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" ${!isCompleted ? 'disabled opacity="0.5"' : ''}>Edit</button>
                                     <button onclick="deleteBookingLocal('${booking.id}')" style="background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">Delete</button>
                                 </td>
                             </tr>`;
@@ -183,8 +192,7 @@
                                 <td>${p.contact || 'N/A'}</td>
                                 <td><span style="background:#e2e8f0; padding:2px 8px; border-radius:10px; font-weight:bold;">${p.total_visits}</span></td>
                                 <td>
-                                    <button onclick="openPatientVisits('${p.patient_id}', '${p.patient_name}')" style="background:#8b5cf6; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Visits/Tests</button>
-                                    <button onclick="openEditPatientModal('${p.patient_id}', '${p.patient_name ? p.patient_name.replace(/'/g, "\\'") : ''}')" style="background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-left:5px;">Edit Patient</button>
+                                    <button onclick="openPatientVisits('${p.patient_id}', '${p.patient_name}')" style="background:#8b5cf6; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">View Visits/Tests</button>
                                 </td>
                             </tr>`
                     });
@@ -259,13 +267,12 @@
                 queryParams.hide = allUncheckedIds.join(',');
             }
 
-            if (allUncheckedIds.length === checkboxes.length) {
+            if (allUncheckedIds.length --= checkboxes.length) {
                 alert('Please select at least one test to print.');
                 return;
             }
 
-            const urlStr = new URLSearchParams(queryParams).toString();
-            window.api.openPrintWindow(urlStr);
+            window.api.openPrintWindow(queryParams);
         }
 
         function closeModal() {
@@ -287,83 +294,6 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => switchTab('tests'));
-    
-        // --- EDIT PATIENT LOGIC ---
-        async function openEditPatientModal(patientId) {
-            const syncDetails = await window.api.getManualSyncDetails(patientId);
-            if (syncDetails && syncDetails.success && syncDetails.localPatient) {
-                 const p = syncDetails.localPatient;
-                 document.getElementById('ep_id').value = p.id;
-                 document.getElementById('ep_name').value = p.name;
-                 document.getElementById('ep_age').value = p.age || '';
-                 document.getElementById('ep_gender').value = p.gender || 'Male';
-                 document.getElementById('ep_phone').value = p.phone || '';
-                 
-                 if (syncDetails.localBookings && syncDetails.localBookings.length > 0) {
-                     document.getElementById('ep_pin').value = syncDetails.localBookings[0].pin || '123456';
-                 }
-                 
-                 document.getElementById('editPatientModal').style.display = 'flex';
-            } else {
-                 alert('Could not pull patient details.');
-            }
-        }
-
-        function closeEditPatientModal() {
-            document.getElementById('editPatientModal').style.display = 'none';
-        }
-
-        async function savePatientDetails() {
-            const id = document.getElementById('ep_id').value;
-            const updates = {
-                name: document.getElementById('ep_name').value,
-                age: document.getElementById('ep_age').value,
-                gender: document.getElementById('ep_gender').value,
-                phone: document.getElementById('ep_phone').value,
-                pin: document.getElementById('ep_pin').value
-            };
-            
-            closeEditPatientModal();
-            let btn = document.getElementById('tabPatients');
-            let prevText = btn.innerText;
-            btn.innerText = 'Syncing...';
-            
-            const res = await window.api.updateManualSyncDetails(id, updates);
-            btn.innerText = prevText;
-
-            if (res.success) {
-                alert('Success! Patient Data & PIN updated locally and on Firebase.');
-                performSearch(); 
-            } else {
-                alert('Update Failed: ' + (res.error || 'Unknown Error'));
-            }
-        }
     </script>
-    
-    <!-- Edit Patient Details Modal -->
-    <div id="editPatientModal" class="modal">
-        <div class="modal-content" style="width: 450px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="font-size:18px;">Edit Patient Details</h2>
-                <button onclick="closeEditPatientModal()" style="border:none; background:#ef4444; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">Close</button>
-            </div>
-            <div style="display:flex; flex-direction:column; gap:10px;">
-                <input type="hidden" id="ep_id">
-                <label>Name</label><input type="text" id="ep_name" style="padding:8px; border:1px solid #ccc; border-radius:4px;">
-                <div style="display:flex; gap:10px;">
-                    <div style="flex:1;"><label>Age</label><br><input type="number" id="ep_age" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;"></div>
-                    <div style="flex:1;"><label>Gender</label><br>
-                        <select id="ep_gender" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                            <option>Male</option><option>Female</option>
-                        </select>
-                    </div>
-                </div>
-                <label>Phone / Contact</label><input type="text" id="ep_phone" style="padding:8px; border:1px solid #ccc; border-radius:4px;">
-                <label>Online Result PIN</label><input type="text" id="ep_pin" style="padding:8px; border:1px solid #ccc; border-radius:4px;" placeholder="Leave blank to not change password">
-                <button onclick="savePatientDetails()" style="margin-top:15px; padding:10px; background:#10b981; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">Save & Update Firebase</button>
-            </div>
-        </div>
-    </div>
-    
-</body>
+<script type="module" src="../assets/firebase_config.js"></script></body>
 </html>

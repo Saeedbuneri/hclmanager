@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HCL – Inventory Management</title>
+    <link rel="stylesheet" href="../assets/style.css">
+    <script src="../assets/shared.js"></script>
+    <script src="../assets/sidebar.js"></script>
+</head>
+<body>
+<div id="sidebar-container"></div>
+
+<div class="main-content">
+    <div class="page-header">
+        <div>
+            <h1>🧪 Inventory & Reagent Stock</h1>
+            <p>Track lab reagents, consumables, and supplies. Alerts when stock is low.</p>
+        </div>
+        <div class="flex-center">
+            <button class="btn btn-ghost btn-sm" onclick="loadInventory()">🔄 Refresh</button>
+            <button class="btn btn-primary" onclick="openAddModal()">+ Add Item</button>
+        </div>
+    </div>
+
+    <!-- Alert Strip -->
+    <div id="alertStripWrap" style="display:none;" class="card" style="background: #fef3c7; border-color: #f59e0b; margin-bottom: 20px;">
+        <div id="alertStrip"></div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-grid" id="inventoryStats" style="grid-template-columns:repeat(4,1fr); margin-bottom:24px;">
+        <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-label">Total Items</div><div class="stat-value" id="statTotal">-</div></div>
+        <div class="stat-card"><div class="stat-icon" style="color:var(--danger)">⚠️</div><div class="stat-label">Low Stock</div><div class="stat-value" id="statLow" style="color:var(--warning)">-</div></div>
+        <div class="stat-card"><div class="stat-icon" style="color:var(--danger)">🔴</div><div class="stat-label">Out of Stock</div><div class="stat-value" id="statOut" style="color:var(--danger)">-</div></div>
+        <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-label">Adequate</div><div class="stat-value" id="statOk" style="color:var(--success)">-</div></div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="flex-between mb-3">
+        <div class="flex-center gap-2">
+            <input type="text" id="searchInv" placeholder="Search items..." style="width:220px;" oninput="filterInventory()">
+            <select id="catFilter" style="width:160px;" onchange="filterInventory()">
+                <option value="">All Categories</option>
+                <option>Hematology</option><option>Biochemistry</option>
+                <option>Immunology</option><option>Microbiology</option>
+                <option>Consumables</option><option>Chemicals</option><option>General</option>
+            </select>
+        </div>
+        <div class="flex-center gap-2">
+            <label class="flex-center gap-2" style="font-size:13px; color:var(--text-muted); cursor:pointer;">
+                <input type="checkbox" id="showLowOnly" onchange="filterInventory()"> Show low/out only
+            </label>
+        </div>
+    </div>
+
+    <!-- Inventory Grid -->
+    <div class="inventory-grid" id="inventoryGrid">
+        <div class="skeleton skeleton-line lg" style="height:160px;"></div>
+        <div class="skeleton skeleton-line lg" style="height:160px;"></div>
+        <div class="skeleton skeleton-line lg" style="height:160px;"></div>
+    </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="itemModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="itemModalTitle">Add Inventory Item</h3>
+            <button class="modal-close" onclick="closeItemModal()">×</button>
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Item Name *</label>
+                <input type="text" id="iName" placeholder="e.g. CBC Reagent Kit">
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <select id="iCategory">
+                    <option>Hematology</option><option>Biochemistry</option>
+                    <option>Immunology</option><option>Microbiology</option>
+                    <option>Consumables</option><option>Chemicals</option><option>General</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Unit of Measure</label>
+                <input type="text" id="iUnit" placeholder="e.g. bottles, packs, mL">
+            </div>
+            <div class="form-group">
+                <label>Current Stock</label>
+                <input type="number" id="iStock" placeholder="0" min="0" step="0.5">
+            </div>
+            <div class="form-group">
+                <label>⚠️ Low Stock Alert Threshold</label>
+                <input type="number" id="iMin" placeholder="5" min="0" step="1">
+            </div>
+            <div class="form-group">
+                <label>Max Stock (capacity)</label>
+                <input type="number" id="iMax" placeholder="100" min="1" step="1">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Notes / Supplier Info</label>
+            <textarea id="iNotes" rows="2" placeholder="Supplier name, batch, expiry..."></textarea>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeItemModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveItem()">💾 Save Item</button>
+        </div>
+    </div>
+</div>
+
+<!-- Adjust Stock Modal -->
+<div class="modal-overlay" id="adjustModal">
+    <div class="modal" style="max-width:380px;">
+        <div class="modal-header">
+            <h3>Adjust Stock — <span id="adjustItemName"></span></h3>
+            <button class="modal-close" onclick="closeAdjustModal()">×</button>
+        </div>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Enter a positive number to add stock, negative to remove.</p>
+        <div class="form-group">
+            <label>Quantity Change</label>
+            <input type="number" id="adjustQty" placeholder="e.g. +10 or -3" step="0.5">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeAdjustModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="applyAdjustment()">✔ Apply</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let allItems = [];
+let editingId = null;
+let adjustingId = null;
+
+async function loadInventory() {
+    try {
+        allItems = await window.api.getInventory();
+        renderInventory(allItems);
+        updateStats(allItems);
+        checkAlerts(allItems);
+    } catch(e) {
+        showToast('Failed to load inventory.', 'error');
+    }
+}
+
+function updateStats(items) {
+    const low  = items.filter(i => i.current_stock > 0 && i.current_stock <= i.min_stock).length;
+    const out  = items.filter(i => i.current_stock <= 0).length;
+    document.getElementById('statTotal').textContent = items.length;
+    document.getElementById('statLow').textContent   = low;
+    document.getElementById('statOut').textContent   = out;
+    document.getElementById('statOk').textContent    = items.length - low - out;
+}
+
+function checkAlerts(items) {
+    const critical = items.filter(i => i.current_stock <= i.min_stock);
+    const stripWrap = document.getElementById('alertStripWrap');
+    const strip = document.getElementById('alertStrip');
+    if (critical.length > 0) {
+        stripWrap.style.display = 'block';
+        stripWrap.style.background = '#fef3c7';
+        stripWrap.style.borderLeft = '4px solid var(--warning)';
+        stripWrap.style.padding = '14px 18px';
+        stripWrap.style.borderRadius = 'var(--radius)';
+        stripWrap.style.marginBottom = '20px';
+        strip.innerHTML = '<strong>⚠️ ' + critical.length + ' item(s) need restocking:</strong> ' +
+            critical.map(i => '<span style="color:var(--danger);font-weight:600;">' + i.name + ' (' + i.current_stock + ' ' + i.unit + ')</span>').join(' · ');
+    } else {
+        stripWrap.style.display = 'none';
+    }
+}
+
+function renderInventory(items) {
+    const grid = document.getElementById('inventoryGrid');
+    if (items.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted);"><div style="font-size:48px;margin-bottom:12px;">🧪</div><div style="font-size:16px;font-weight:600;">No inventory items yet</div><p style="margin-top:8px;">Click "+ Add Item" to add your first reagent.</p></div>';
+        return;
+    }
+    grid.innerHTML = items.map(item => {
+        const pct = item.max_stock > 0 ? Math.min(100, (item.current_stock / item.max_stock) * 100) : 0;
+        const isOut  = item.current_stock <= 0;
+        const isLow  = !isOut && item.current_stock <= item.min_stock;
+        const cls    = isOut ? 'out' : isLow ? 'low' : 'ok';
+        const fillCls = isOut ? 'stock-fill-out' : isLow ? 'stock-fill-low' : 'stock-fill-ok';
+        const updated = item.last_updated ? fmtDate(item.last_updated) : 'Never';
+        const alertHtml = isOut
+            ? '<div class="alert-pill out">🔴 Out of Stock</div>'
+            : isLow
+            ? '<div class="alert-pill low">⚠️ Low Stock</div>'
+            : '<div style="font-size:11px;color:var(--success);font-weight:600;margin-top:6px;">✅ Adequate</div>';
+
+        return `<div class="inventory-card ${cls}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <div>
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:4px;">${item.category}</div>
+                    <div style="font-size:15px;font-weight:700;color:var(--text);">${item.name}</div>
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <button onclick="openAdjustModal(${item.id},'${item.name.replace(/'/g,"\\'")}',${item.current_stock})" class="btn btn-ghost btn-sm" title="Adjust stock">±</button>
+                    <button onclick="openEditModal(${item.id})" class="btn btn-outline btn-sm">✏️</button>
+                    <button onclick="confirmDelete(${item.id},'${item.name.replace(/'/g,"\\'")}' )" class="btn btn-danger btn-sm">🗑</button>
+                </div>
+            </div>
+            <div class="stock-bar"><div class="stock-bar-fill ${fillCls}" style="width:${pct}%"></div></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-top:4px;">
+                <span><strong style="font-size:18px;color:var(--text);">${item.current_stock}</strong> ${item.unit}</span>
+                <span>Min: ${item.min_stock} | Max: ${item.max_stock}</span>
+            </div>
+            ${alertHtml}
+            <div style="font-size:10px;color:var(--text-light);margin-top:8px;">Updated ${updated} ${item.notes ? '· ' + item.notes : ''}</div>
+        </div>`;
+    }).join('');
+}
+
+function filterInventory() {
+    const q    = document.getElementById('searchInv').value.toLowerCase();
+    const cat  = document.getElementById('catFilter').value;
+    const lowOnly = document.getElementById('showLowOnly').checked;
+    const filtered = allItems.filter(i => {
+        const itemName = String(i.name || '').toLowerCase();
+        const itemNotes = String(i.notes || '').toLowerCase();
+        const matchQ   = itemName.includes(q) || itemNotes.includes(q);
+        const matchCat = !cat || i.category === cat;
+        const matchLow = !lowOnly || i.current_stock <= i.min_stock;
+        return matchQ && matchCat && matchLow;
+    });
+    renderInventory(filtered);
+}
+
+function openAddModal() {
+    editingId = null;
+    document.getElementById('itemModalTitle').textContent = 'Add Inventory Item';
+    ['iName','iUnit','iNotes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('iCategory').value = 'General';
+    document.getElementById('iStock').value = '';
+    document.getElementById('iMin').value = '5';
+    document.getElementById('iMax').value = '100';
+    document.getElementById('itemModal').classList.add('open');
+    setTimeout(() => document.getElementById('iName').focus(), 100);
+}
+function openEditModal(id) {
+    const item = allItems.find(i => i.id === id);
+    if (!item) return;
+    editingId = id;
+    document.getElementById('itemModalTitle').textContent = 'Edit Item';
+    document.getElementById('iName').value     = item.name;
+    document.getElementById('iCategory').value = item.category;
+    document.getElementById('iUnit').value     = item.unit;
+    document.getElementById('iStock').value    = item.current_stock;
+    document.getElementById('iMin').value      = item.min_stock;
+    document.getElementById('iMax').value      = item.max_stock;
+    document.getElementById('iNotes').value    = item.notes || '';
+    document.getElementById('itemModal').classList.add('open');
+}
+function closeItemModal() { document.getElementById('itemModal').classList.remove('open'); }
+
+async function saveItem() {
+    const name = document.getElementById('iName').value.trim();
+    if (!name) { showToast('Item name is required.', 'warning'); return; }
+    const item = {
+        id: editingId || null,
+        name, category: document.getElementById('iCategory').value,
+        unit: document.getElementById('iUnit').value || 'units',
+        current_stock: parseFloat(document.getElementById('iStock').value) || 0,
+        min_stock: parseFloat(document.getElementById('iMin').value) || 5,
+        max_stock: parseFloat(document.getElementById('iMax').value) || 100,
+        notes: document.getElementById('iNotes').value.trim()
+    };
+    await window.api.saveInventoryItem(item);
+    closeItemModal();
+    showToast(editingId ? 'Item updated.' : 'Item added.', 'success');
+    loadInventory();
+}
+
+function openAdjustModal(id, name, current) {
+    adjustingId = id;
+    document.getElementById('adjustItemName').textContent = name + ' (current: ' + current + ')';
+    document.getElementById('adjustQty').value = '';
+    document.getElementById('adjustModal').classList.add('open');
+    setTimeout(() => document.getElementById('adjustQty').focus(), 100);
+}
+function closeAdjustModal() { document.getElementById('adjustModal').classList.remove('open'); }
+async function applyAdjustment() {
+    const qty = parseFloat(document.getElementById('adjustQty').value);
+    if (isNaN(qty)) { showToast('Please enter a valid quantity.', 'warning'); return; }
+    await window.api.adjustInventoryStock(adjustingId, qty);
+    closeAdjustModal();
+    showToast('Stock updated by ' + (qty > 0 ? '+' : '') + qty, 'success');
+    loadInventory();
+}
+
+async function confirmDelete(id, name) {
+    if (!confirm('Delete "' + name + '" from inventory? This cannot be undone.')) return;
+    await window.api.deleteInventoryItem(id);
+    showToast('"' + name + '" removed.', 'success');
+    loadInventory();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    initSidebar('inventory.html');
+    loadInventory();
+    // Enter key in adjust modal
+    document.getElementById('adjustQty').addEventListener('keydown', e => {
+        if (e.key === 'Enter') applyAdjustment();
+    });
+    // Enter key in item modal
+    document.getElementById('itemModal').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+            saveItem();
+        }
+    });
+    // Low stock badge on title
+    window.api.getLowStockItems().then(items => {
+        if (items.length > 0) setTitleBadge(items.length, 'Inventory');
+    }).catch(() => {});
+});
+</script>
+</body>
+</html>
