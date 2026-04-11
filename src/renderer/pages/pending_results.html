@@ -245,18 +245,25 @@ async function openDataEntry(dbId, testId, testName, pName, parametersStr, param
                 <span class="param-ref">Ref: ${param.ref || '-'}</span>
             </div>
             ${prevVal !== undefined ? '<div class="prev-val">Prev: ' + prevVal + '</div>' : ''}
-            <input type="number" step="any" id="param_${idx}"
-                   value="${existingVal}"
-                   class="result-input" data-name="${param.name}"
-                   data-min="${minVal}" data-max="${maxVal}"
-                   placeholder="Enter value">
-            <div class="range-indicator" id="rangebar_${idx}" style="display:${existingVal ? 'block' : 'none'};">
-                <div class="range-bar"><div class="range-bar-fill" id="rfill_${idx}"></div></div>
-            </div>
-        `;
-        container.appendChild(block);
+              ${param.type === 'posneg' 
+                  ? `<select id="param_${idx}" class="result-input" data-name="${param.name}">
+                        <option value="">Select Result...</option>
+                        <option value="Negative" ${existingVal === 'Negative' ? 'selected' : ''}>Negative</option>
+                        <option value="Positive" ${existingVal === 'Positive' ? 'selected' : ''}>Positive</option>
+                    </select>`
+                  : `<input type="number" step="any" id="param_${idx}"
+                         value="${existingVal}"
+                         class="result-input" data-name="${param.name}"
+                         data-min="${minVal}" data-max="${maxVal}"
+                         placeholder="Enter value">`
+              }
+              <div class="range-indicator" id="rangebar_${idx}" style="display:${existingVal && param.type !== 'posneg' ? 'block' : 'none'};">
+                  <div class="range-bar"><div class="range-bar-fill" id="rfill_${idx}"></div></div>
+              </div>
+          `;
+          container.appendChild(block);
 
-        const inp = block.querySelector('input');
+          const inp = block.querySelector('.result-input');
         inp.addEventListener('input', () => {
             updateRangeBar(idx, inp.value, minVal, maxVal);
             scheduleAutoSave(dbId, testId, params);

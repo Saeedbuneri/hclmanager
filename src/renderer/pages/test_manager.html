@@ -112,19 +112,23 @@
             });
         }
 
-        function addParamRow(name = '', ref = '', unit = 'N/A') {
+function addParamRow(name = '', ref = '', unit = 'N/A', type = 'number') {
             const container = document.getElementById('paramsList');
             const row = document.createElement('div');
             row.style.display = 'flex';
             row.style.gap = '10px';
             row.style.marginBottom = '10px';
             row.className = 'param-row';
-            
+
+            let typeOptions = `<option value="number" ${type === 'number' ? 'selected' : ''}>Number</option><option value="posneg" ${type === 'posneg' ? 'selected' : ''}>Positive/Negative</option>`;
             let unitOptions = UNITS.map(u => `<option value="${u}" ${u === unit ? "selected" : ""}>${u}</option>`).join('');
 
             row.innerHTML = `
                 <input type="text" class="p-name" placeholder="Parameter Name (e.g. WBC)" value="${name}" style="flex:2; padding:6px; border:1px solid #ccc; border-radius:4px;" required>
                 <input type="text" class="p-ref" placeholder="Normal Range" value="${ref}" style="flex:2; padding:6px; border:1px solid #ccc; border-radius:4px;" required>
+                <select class="p-type" style="flex:1.5; padding:6px; border:1px solid #ccc; border-radius:4px;">
+                    ${typeOptions}
+                </select>
                 <select class="p-unit" style="flex:1.5; padding:6px; border:1px solid #ccc; border-radius:4px;">
                     ${unitOptions}
                 </select>
@@ -148,12 +152,12 @@
             try {
                 const parsed = JSON.parse(test.parameters);
                 if(Array.isArray(parsed) && parsed.length > 0) {
-                    parsed.forEach(p => addParamRow(p.name, p.ref, p.unit));
+                    parsed.forEach(p => addParamRow(p.name, p.ref, p.unit, p.type || 'number'));
                 } else {
                     addParamRow();
                 }
             } catch(e) {
-                 addParamRow('Legacy: ' + test.parameters, '-', 'N/A');
+                 addParamRow('Legacy: ' + test.parameters, '-', 'N/A', 'number');
             }
 
             document.querySelector('#addModal h3').innerText = 'Edit Test Profile';
@@ -187,9 +191,10 @@
             paramRows.forEach(row => {
                 const pName = row.querySelector('.p-name').value.trim();
                 const pRef = row.querySelector('.p-ref').value.trim();
+                const pType = row.querySelector('.p-type').value;
                 const pUnit = row.querySelector('.p-unit').value;
                 if (pName) {
-                    paramsArr.push({ name: pName, ref: pRef, unit: pUnit });
+                    paramsArr.push({ name: pName, ref: pRef, type: pType, unit: pUnit });
                 }
             });
 
