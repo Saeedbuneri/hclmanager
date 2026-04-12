@@ -115,7 +115,17 @@ window.api = {
       let records = [];
       snaps.forEach(docSnap => {
           let p = docSnap.data();
-          if (p.visits) {
+          if (!p.visits) p.visits = {};
+          
+          // Re-map literal string keys from the old sync bug into the proper visits object
+          Object.keys(p).forEach(k => {
+              if (k.startsWith('visits.')) {
+                  const bId = k.substring(7); // remove 'visits.'
+                  p.visits[bId] = p[k];
+              }
+          });
+
+          if (Object.keys(p.visits).length > 0) {
               for (const [bId, v] of Object.entries(p.visits)) {
                   let testsArr = [];
                   if (v.test_names) {
@@ -321,10 +331,19 @@ let rData = typeof resultJson === 'string' ? JSON.parse(resultJson) : resultJson
       let targetPatientId = null;
       
       snaps.forEach(docSnap => {
-          let visits = docSnap.data().visits;
-          if (visits && visits[bookingId]) {
-              targetP = docSnap.data();
-              targetV = visits[bookingId];
+          let p = docSnap.data();
+          if (!p.visits) p.visits = {};
+          
+          Object.keys(p).forEach(k => {
+              if (k.startsWith('visits.')) {
+                  const bId = k.substring(7);
+                  p.visits[bId] = p[k];
+              }
+          });
+
+          if (p.visits && p.visits[bookingId]) {
+              targetP = p;
+              targetV = p.visits[bookingId];
               targetPatientId = docSnap.id;
           }
       });
