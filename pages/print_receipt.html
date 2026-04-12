@@ -172,31 +172,30 @@
             const filename = 'Receipt_' + (urlParams.get('id') || Date.now()) + '.pdf';
             
             if (window.api && window.api.savePdf) {
-                // If in desktop app, printing is handled by Electron natively
                 window.api.savePdf(filename.replace('.pdf', ''), 'HCL_Slips');
             } else {
-                // Web app: Generate thermal PDF dynamically (80mm width)
                 const element = document.querySelector('.container');
                 const noPrintElements = document.querySelectorAll('.no-print');
                 
-                // Hide buttons before printing to ensure they don't appear in PDF
                 noPrintElements.forEach(el => el.style.display = 'none');
                 element.style.boxShadow = 'none';
 
-                // Calculate dynamic height in mm based on content (1px ≈ 0.264583mm)
-                const elemHeight = element.offsetHeight || 600;
-                const pdfHeightMM = Math.max(150, elemHeight * 0.264583 + 20);
+                // The container is 380px wide. We are targeting an 80mm PDF width.
+                // To maintain aspect ratio and fit on exactly 1 page:
+                const ratio = 80 / 380; 
+                const elemHeight = element.scrollHeight || 600;
+                // Add a tiny buffer (1mm) to prevent extreme edge rounding splits
+                const pdfHeightMM = (elemHeight * ratio) + 1;
 
                 const opt = {
-                    margin: [5, 4, 5, 4], // top, right, bottom, left in mm
+                    margin: 0,
                     filename: filename,
                     image: { type: 'jpeg', quality: 1.0 },
-                    html2canvas: { scale: 3, useCORS: true },
+                    html2canvas: { scale: 3, useCORS: true, windowWidth: 380 },
                     jsPDF: { unit: 'mm', format: [80, pdfHeightMM], orientation: 'portrait' }
                 };
 
                 html2pdf().set(opt).from(element).save().then(() => {
-                    // Restore styles after generation
                     noPrintElements.forEach(el => el.style.display = 'flex');
                     element.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.2)';
                 });
