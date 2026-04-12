@@ -149,9 +149,11 @@ window.api = {
                       patient_id: docSnap.id,
                       patient_name: p.patient_name || 'Unknown',
                       contact: p.contact || '',
-                      pin: v.pin || '123456',
+                      // PIN is stored at patient doc root as 'password', NOT inside the visit
+                      pin: p.password || '123456',
                       date: v.timestamp ? new Date(v.timestamp).toISOString() : new Date().toISOString(),
                       total_amount: v.total_amount,
+                      discount: v.discount || 0,
                       status: v.status || 'Pending',
                       tests: Array.isArray(v.test_names) ? v.test_names.join(', ') : '',
                       tests_json: JSON.stringify(testsArr),
@@ -316,42 +318,67 @@ let rData = typeof resultJson === 'string' ? JSON.parse(resultJson) : resultJson
       const snaps = await getDocs(collection(db, "reports"));
       let targetP = null;
       let targetV = null;
+      let targetPatientId = null;
       
       snaps.forEach(docSnap => {
           let visits = docSnap.data().visits;
           if (visits && visits[bookingId]) {
               targetP = docSnap.data();
               targetV = visits[bookingId];
+              targetPatientId = docSnap.id;
           }
       });
       
-      if (!targetP) return null;
-      
-      let out = {
-          patient: {
-             name: targetP.patient_name,
-             age: targetP.age,
-             gender: targetP.gender,
-             phone: targetP.contact
-          },
-          booking: {
-             id: bookingId,
-             date: targetV.date,
-             referred_by: 'Self'
-          },
-          tests: []
-      };
+      if (!targetP || !targetV) return null;
 
+      // Build results array in the shape print_report.html expects:
+      // { test_name, parameters (JSON string), parameter_data (JSON string), completed, test_id, comment }
+      const results = [];
       if (targetV.test_names) {
-          targetV.test_names.forEach(tName => {
-             out.tests.push({
-                 test_name: tName,
-                 params_json: targetV.units_and_ranges[tName] ? JSON.stringify(targetV.units_and_ranges[tName].map(u => ({name: u.name, ref: u.normal_range, unit: u.unit}))) : "[]",
-                 result_data: JSON.stringify(targetV.test_results)
-             });
+          targetV.test_names.forEach((tName, idx) => {
+              const paramsArr = (targetV.units_and_ranges && targetV.units_and_ranges[tName]) || [];
+              // Convert to the schema print_report.html expects: { name, ref, unit }
+              const paramsMapped = paramsArr.map(u => ({
+                  name: u.name,
+                  ref: u.normal_range || u.ref || '',
+                  unit: u.unit || ''
+              }));
+
+              // Extract per-test results from the shared test_results map
+              const pDataObj = {};
+              let hasData = false;
+              paramsArr.forEach(param => {
+                  const val = targetV.test_results && targetV.test_results[param.name];
+                  if (val !== undefined && val !== '') {
+                      pDataObj[param.name] = val;
+                      hasData = true;
+                  }
+              });
+
+              results.push({
+                  test_id: idx + 1,
+                  test_name: tName,
+                  completed: hasData ? 1 : 0,
+                  parameters: JSON.stringify(paramsMapped),
+                  parameter_data: hasData ? JSON.stringify(pDataObj) : null,
+                  comment: targetV.comments || ''
+              });
           });
       }
-      return out;
+
+      return {
+          // booking object matches what print_report.html reads
+          booking: {
+              patient_id: targetPatientId,
+              patient_name: targetP.patient_name || '',
+              date: targetV.timestamp ? new Date(targetV.timestamp).toISOString() : targetV.date,
+              gender: targetP.gender || '',
+              age: targetP.age || '',
+              pin: targetP.password || '123456',
+              referred_by: targetV.referred_by || 'Self'
+          },
+          results
+      };
   },
 
   openPrintWindow: (params) => {

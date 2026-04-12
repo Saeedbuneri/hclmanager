@@ -281,7 +281,7 @@
             </div>
 
             <div class="action-buttons no-print">
-                <button class="btn btn-secondary" onclick="window.api.savePdf('Report_' + (new URLSearchParams(window.location.search).get('db_id') || Date.now()));">Download PDF</button>
+                <button class="btn btn-secondary" onclick="window.print()">Download / Print PDF</button>
                 <button class="btn" onclick="window.print()">Print Official Report</button>
             </div>
         </div>
@@ -409,7 +409,7 @@
 
                                 // Advanced ref parsing
                                 if (p.ref && !isNaN(num)) {
-                                    let match = String(p.ref).match(/^([<>]=?)?\\s*(-?\\d+(?:\\.\\d+)?)\\s*(?:-\\s*(-?\\d+(?:\\.\\d+)?))?$/);
+                                    let match = String(p.ref).match(/^([<>]=?)\s*(-?\d+(?:\.\d+)?)\s*(?:-\s*(-?\d+(?:\.\d+)?))?$/);
                                     if (match) {
                                         if (match[1] === '<' && match[2]) status = num < parseFloat(match[2]) ? 'Normal' : 'High';
                                         else if (match[1] === '>' && match[2]) status = num > parseFloat(match[2]) ? 'Normal' : 'Low';
