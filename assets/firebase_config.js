@@ -367,55 +367,139 @@ let rData = typeof resultJson === 'string' ? JSON.parse(resultJson) : resultJson
   getAnalyticsData: async (filterType = 'all') => {
       await ensureAuth();
       const snaps = await getDocs(collection(db, "reports"));
-      let revenue = 0;
-      let totalVisits = 0;
-      let pendingCount = 0;
-      let testCount = 0;
 
+      // ── Build time range ──────────────────────────────────────
       const now = new Date();
       let startTime = 0;
+      let endTime   = Infinity;
 
-      if (filterType === 'today') {
-          startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      } else if (filterType === 'yesterday') {
-          startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).getTime();
-          const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-          // Adjust logic below to handle range if needed
-      } else if (filterType === '7days') {
-          startTime = now.getTime() - (7 * 24 * 60 * 60 * 1000);
-      } else if (filterType === '30days') {
-          startTime = now.getTime() - (30 * 24 * 60 * 60 * 1000);
+      const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+      if      (filterType === 'today')      { startTime = startOfDay(now); }
+      else if (filterType === 'yesterday')  { startTime = startOfDay(now) - 86400000; endTime = startOfDay(now); }
+      else if (filterType === '7days')      { startTime = now.getTime() - 7  * 86400000; }
+      else if (filterType === '30days')     { startTime = now.getTime() - 30 * 86400000; }
+      else if (filterType === 'this_month') { startTime = new Date(now.getFullYear(), now.getMonth(), 1).getTime(); }
+      else if (filterType === 'last_month') {
+          startTime = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+          endTime   = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
       }
+      else if (filterType === '90days')     { startTime = now.getTime() - 90 * 86400000; }
+      else if (filterType === '6months')    { startTime = now.getTime() - 180 * 86400000; }
+      else if (filterType === '1year')      { startTime = now.getTime() - 365 * 86400000; }
+
+      // ── Accumulators (mirrors desktop SQLite getAnalyticsData) ─
+      let totalRevenue    = 0; // total_amount - discount  (net billed)
+      let totalVisits     = 0;
+      let pendingCount    = 0;
+      let todayRevenue    = 0;
+      let todayVisits     = 0;
+      const todayStart    = startOfDay(now);
+
+      const topTestsMap   = {};   // test_name → count
+      const dailyMap      = {};   // 'YYYY-MM-DD' → { revenue, visits }
+      const statusMap     = {};   // status → count
+      const genderMap     = {};   // gender → Set of patient_ids
+      const categoryMap   = {};   // category (from test name prefix) → revenue
+
+      // ── Collect test catalog prices for category lookup ───────
+      let catalogCache = {};
+      try {
+          const catSnaps = await getDocs(collection(db, "tests_catalog"));
+          catSnaps.forEach(d => { catalogCache[d.data().name] = d.data().category || 'General'; });
+      } catch(_) {}
 
       snaps.forEach(docSnap => {
-          let p = docSnap.data();
-          if (p.visits) {
-              for (const [bId, v] of Object.entries(p.visits)) {
-                  const t = v.timestamp || 0;
-                  
-                  // Simple range check
-                  let inRange = true;
-                  if (filterType === 'today') inRange = (t >= startTime);
-                  else if (filterType === 'yesterday') {
-                      const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-                      inRange = (t >= startTime && t < endTime);
-                  }
-                  else if (filterType !== 'all') inRange = (t >= startTime);
+          const p = docSnap.data();
+          const patientId = docSnap.id;
+          const gender    = (p.gender || 'Unknown').trim() || 'Unknown';
 
-                  if (inRange) {
-                      totalVisits++;
-                      revenue += Number(v.total_amount || 0);
-                      if (v.status !== 'Completed') {
-                          pendingCount++;
-                      }
-                      if (v.test_names && Array.isArray(v.test_names)) {
-                          testCount += v.test_names.length;
-                      }
-                  }
+          if (!p.visits) return;
+
+          for (const [bId, v] of Object.entries(p.visits)) {
+              const t = v.timestamp || 0;
+              if (t < startTime || t >= endTime) continue;
+
+              const gross    = Number(v.total_amount || 0);
+              const discount = Number(v.discount     || 0);
+              const net      = Math.max(0, gross - discount); // matches desktop "total_amount - discount"
+              const status   = v.status || 'Pending';
+              const day      = new Date(t).toISOString().split('T')[0]; // 'YYYY-MM-DD'
+
+              // ── Overview ───────────────────────────────────────
+              totalVisits++;
+              totalRevenue += net;
+              if (status !== 'Completed') pendingCount++;
+
+              // ── Status map ─────────────────────────────────────
+              statusMap[status] = (statusMap[status] || 0) + 1;
+
+              // ── Daily trends ───────────────────────────────────
+              if (!dailyMap[day]) dailyMap[day] = { revenue: 0, visits: 0 };
+              dailyMap[day].revenue += net;
+              dailyMap[day].visits++;
+
+              // ── Gender (unique patients only) ──────────────────
+              if (!genderMap[gender]) genderMap[gender] = new Set();
+              genderMap[gender].add(patientId);
+
+              // ── Top tests ──────────────────────────────────────
+              if (v.test_names && Array.isArray(v.test_names)) {
+                  const perTestShare = v.test_names.length > 0 ? net / v.test_names.length : 0;
+                  v.test_names.forEach(tName => {
+                      topTestsMap[tName] = (topTestsMap[tName] || 0) + 1;
+                      const cat = catalogCache[tName] || 'General';
+                      categoryMap[cat] = (categoryMap[cat] || 0) + perTestShare;
+                  });
+              }
+
+              // ── Today stats (always real-time, ignore filter) ──
+              if (t >= todayStart) {
+                  todayRevenue += net;
+                  todayVisits++;
               }
           }
       });
-      return { revenue, visits: totalVisits, pendingCount, testCount, cashInHand: revenue };
+
+      // ── Shape output to match desktop analytics structure ─────
+      const overview = {
+          total_revenue   : Math.round(totalRevenue),
+          total_collected : Math.round(totalRevenue), // no partial payments on web
+          total_outstanding: 0,
+          total_visits    : totalVisits,
+          today_revenue   : Math.round(todayRevenue),
+          today_visits    : todayVisits,
+          total_expenses  : 0,
+          net_profit      : Math.round(totalRevenue),
+          // minimal fields the analytics.html (desktop-style) also reads
+          revenue         : Math.round(totalRevenue),
+          visits          : totalVisits,
+          pendingCount    : pendingCount,
+          testCount       : Object.values(topTestsMap).reduce((a,b) => a + b, 0),
+          cashInHand      : Math.round(totalRevenue)
+      };
+
+      const dailyTrends = Object.keys(dailyMap).sort().map(day => ({
+          day,
+          revenue: Math.round(dailyMap[day].revenue),
+          visits : dailyMap[day].visits
+      }));
+
+      const topTests = Object.entries(topTestsMap)
+          .sort((a, b) => b[1] - a[1]).slice(0, 10)
+          .map(([test_name, count]) => ({ test_name, count }));
+
+      const statusBreakdown = Object.entries(statusMap)
+          .map(([status, count]) => ({ status, count }));
+
+      const genderDemographic = Object.entries(genderMap)
+          .map(([gender, set]) => ({ gender, count: set.size }));
+
+      const categoryStats = Object.entries(categoryMap)
+          .sort((a, b) => b[1] - a[1])
+          .map(([category, revenue]) => ({ category, revenue: Math.round(revenue) }));
+
+      return { overview, dailyTrends, topTests, statusBreakdown, genderDemographic, categoryStats };
   },
   getRepeatPatientRate: async () => { return 0; },
   getTestPopularityHeatmap: async () => { return []; },
