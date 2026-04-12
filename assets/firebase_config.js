@@ -178,7 +178,7 @@ window.api = {
           records = records.filter(r => (r.patient_name || '').toLowerCase().includes(t) || (r.patient_id || '').toLowerCase().includes(t) || (r.contact || '').includes(t));
       } else if (t.startsWith('visits:')) {
           let pId = t.split(':')[1];
-          records = records.filter(r => r.patient_id === pId);
+          records = records.filter(r => (r.patient_id || '').toLowerCase() === pId);
       }
       
       return records.sort((a,b) => new Date(b.date) - new Date(a.date)).filter((x,i) => i < 50);

@@ -149,27 +149,23 @@
                     }
 
                     let patientMap = new Map();
-                    if (!searchTerm) {
-                        records.forEach(p => patientMap.set(p.patient_id, p));
-                    } else {
-                        records.forEach(b => {
-                            if (!patientMap.has(b.patient_id)) {
-                                patientMap.set(b.patient_id, {
-                                    patient_id: b.patient_id,
-                                    patient_name: b.patient_name,
-                                    contact: b.contact,
-                                    pin: b.pin,
-                                    last_visit: b.date,
-                                    total_visits: 1
-                                });
-                            } else {
-                                let p = patientMap.get(b.patient_id);
-                                p.total_visits++;
-                                if (b.date > p.last_visit) p.last_visit = b.date;
-                                if (!p.pin && b.pin) p.pin = b.pin;
-                            }
-                        });
-                    }
+                    records.forEach(b => {
+                        if (!patientMap.has(b.patient_id)) {
+                            patientMap.set(b.patient_id, {
+                                patient_id: b.patient_id,
+                                patient_name: b.patient_name,
+                                contact: b.contact,
+                                pin: b.pin,
+                                last_visit: b.date,
+                                total_visits: 1
+                            });
+                        } else {
+                            let p = patientMap.get(b.patient_id);
+                            p.total_visits++;
+                            if (b.date > p.last_visit) p.last_visit = b.date;
+                            if (!p.pin && b.pin) p.pin = b.pin;
+                        }
+                    });
 
                     let patientsAgg = Array.from(patientMap.values()).sort((a,b) => new Date(b.last_visit) - new Date(a.last_visit));
 
