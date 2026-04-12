@@ -126,7 +126,10 @@
             if(list.firstChild) list.firstChild.style.background = '#f1f5f9';
         }
 
+        let currentCategory = 'Top Suggested';
+
         function renderTestsForCategory(cat) {
+            currentCategory = cat;
             const list = document.getElementById('testList');
             list.innerHTML = '';
             const filtered = cat === 'Top Suggested' ? allTests.slice(0, 3) : allTests.filter(t => (t.category || 'General') === cat);
@@ -134,16 +137,26 @@
             if(filtered.length === 0) list.innerHTML = '<div style="text-align:center; color:#94a3b8; margin-top:20px;">No tests</div>';
             
             filtered.forEach(test => {
+                const isSelected = cart.some(item => item.id === test.id);
                 const div = document.createElement('div');
                 div.className = 'test-item';
-                div.onclick = () => addToCart(test.id, test.name, test.price);
-                div.innerHTML = `<span>${test.name}</span><span style="font-weight:bold; color:#0ea5e9;">Rs. ${test.price}</span>`;
+                if (isSelected) {
+                    div.style.background = '#ecfdf5'; // light green
+                    div.style.borderLeft = '4px solid #10b981';
+                }
+                div.onclick = () => toggleCart(test.id, test.name, test.price);
+                div.innerHTML = `<span>${test.name} ${isSelected ? '✅' : ''}</span><span style="font-weight:bold; color:#0ea5e9;">Rs. ${test.price}</span>`;
                 list.appendChild(div);
             });
         }
 
-        function addToCart(id, name, price) {
-            cart.push({id, name, price});
+        function toggleCart(id, name, price) {
+            const index = cart.findIndex(item => item.id === id);
+            if (index > -1) {
+                cart.splice(index, 1);
+            } else {
+                cart.push({id, name, price});
+            }
             updateCartUI();
         }
 
@@ -153,6 +166,7 @@
         }
 
         function updateCartUI() {
+            renderTestsForCategory(currentCategory); // refresh highlights
             const ul = document.getElementById('cartItems');
             ul.innerHTML = '';
             let subTotal = 0;

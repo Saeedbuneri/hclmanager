@@ -24,7 +24,7 @@
       "telephone": "+923139232928",
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "Main Bazar, Jowar",
+        "streetAddress": "Opposite RHC Jowarr",
         "addressLocality": "Buner",
         "addressRegion": "Khyber Pakhtunkhwa",
         "postalCode": "19290",
@@ -477,10 +477,9 @@
     </div>
 
     <script type="module">
-        // Import Firebase modules
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
-        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';
-        import { getAuth, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js';
+        // Import Firebase modules (v10.8.1 matching firebase_config.js)
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+        import { getFirestore, doc, getDoc, collection, getDocs, query, where, limit } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -496,10 +495,35 @@
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const auth = getAuth(app);
 
         // Global variable to store report data
         window.currentReportData = null;
+
+        /**
+         * Normalize parameter fields from Firebase schema.
+         * firebase_config.js saves parameters with `normal_range` (not `reference_range`).
+         * This helper ensures both field names work.
+         */
+        function normalizeParams(paramsArray) {
+            if (!Array.isArray(paramsArray)) return [];
+            return paramsArray.map(p => ({
+                ...p,
+                // Prefer reference_range if present, fallback to normal_range
+                reference_range: p.reference_range || p.normal_range || ''
+            }));
+        }
+
+        /**
+         * Normalize all units_and_ranges in a visit or report object.
+         */
+        function normalizeUnitsAndRanges(unitsAndRanges) {
+            if (!unitsAndRanges || typeof unitsAndRanges !== 'object') return {};
+            const out = {};
+            for (const [testName, params] of Object.entries(unitsAndRanges)) {
+                out[testName] = normalizeParams(params);
+            }
+            return out;
+        }
 
         // Handle form submission
         document.getElementById('reportForm').addEventListener('submit', async (e) => {
@@ -518,47 +542,92 @@
             showLoading(true);
             hideError();
             hideReport();
-            
-            const email = patientId.toLowerCase() + '@lab.local';
-            console.log('Attempting sign in with email:', email);
-            
+
             try {
-                // Sign in with Firebase Auth
-                console.log('Calling signInWithEmailAndPassword...');
-                await signInWithEmailAndPassword(auth, email, password);
-                console.log('✅ Firebase Auth sign in successful');
-                
-                // Only fetch the report for this patientId
-                console.log('Fetching report for patient ID:', patientId);
+                // ── Strategy 1: Direct doc lookup by patientId ──
+                // Patients are stored in Firestore `reports/{patientId}` with a `password` field.
+                // They are NOT Firebase Auth users — so we verify password from Firestore directly.
+                console.log('Fetching report document for patient ID:', patientId);
                 const reportRef = doc(db, 'reports', patientId);
                 const reportSnap = await getDoc(reportRef);
-                console.log('Report document exists:', reportSnap.exists());
-                
+
                 if (reportSnap.exists()) {
                     const reportData = reportSnap.data();
-                    console.log('✅ Report data retrieved successfully');
-                    console.log('Report data keys:', Object.keys(reportData));
-                    
+                    console.log('✅ Report document found. Keys:', Object.keys(reportData));
+
+                    // Verify password stored in Firestore
+                    const storedPassword = reportData.password ? String(reportData.password).trim() : '';
+                    if (storedPassword && storedPassword !== password) {
+                        console.warn('❌ Password mismatch');
+                        showError('Invalid Patient ID or Password. Please check your credentials and try again.');
+                        showLoading(false);
+                        return;
+                    }
+
+                    // Attach patient_id to reportData for PDF generation
+                    reportData.patient_id = reportData.patient_id || patientId;
+
+                    // Normalize parameter field names (normal_range → reference_range)
+                    if (reportData.visits) {
+                        for (const visitKey of Object.keys(reportData.visits)) {
+                            if (reportData.visits[visitKey].units_and_ranges) {
+                                reportData.visits[visitKey].units_and_ranges =
+                                    normalizeUnitsAndRanges(reportData.visits[visitKey].units_and_ranges);
+                            }
+                        }
+                    }
+                    if (reportData.units_and_ranges) {
+                        reportData.units_and_ranges = normalizeUnitsAndRanges(reportData.units_and_ranges);
+                    }
+
                     window.currentReportData = reportData;
                     displayReport(reportData);
                 } else {
-                    console.log('❌ Report document not found in Firestore');
-                    showError('Report not found. Please check your Patient ID.');
-                    await signOut(auth);
+                    // ── Strategy 2: Search by contact number (phone) ──
+                    console.log('Direct doc not found, searching by contact/phone...');
+                    const q = query(
+                        collection(db, 'reports'),
+                        where('contact', '==', patientId),
+                        limit(1)
+                    );
+                    const qSnap = await getDocs(q);
+
+                    if (!qSnap.empty) {
+                        const firstDoc = qSnap.docs[0];
+                        const reportData = firstDoc.data();
+                        console.log('✅ Found patient by contact. Doc ID:', firstDoc.id);
+
+                        const storedPassword = reportData.password ? String(reportData.password).trim() : '';
+                        if (storedPassword && storedPassword !== password) {
+                            showError('Invalid Patient ID or Password. Please check your credentials and try again.');
+                            showLoading(false);
+                            return;
+                        }
+
+                        reportData.patient_id = reportData.patient_id || firstDoc.id;
+
+                        if (reportData.visits) {
+                            for (const visitKey of Object.keys(reportData.visits)) {
+                                if (reportData.visits[visitKey].units_and_ranges) {
+                                    reportData.visits[visitKey].units_and_ranges =
+                                        normalizeUnitsAndRanges(reportData.visits[visitKey].units_and_ranges);
+                                }
+                            }
+                        }
+                        if (reportData.units_and_ranges) {
+                            reportData.units_and_ranges = normalizeUnitsAndRanges(reportData.units_and_ranges);
+                        }
+
+                        window.currentReportData = reportData;
+                        displayReport(reportData);
+                    } else {
+                        console.warn('❌ No document found for this Patient ID');
+                        showError('No records found. Please check your Patient ID or contact the laboratory.');
+                    }
                 }
             } catch (error) {
-                console.log('❌ Error during authentication/fetch:', error);
-                console.log('Error code:', error.code);
-                console.log('Error message:', error.message);
-                
-                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                    showError('Invalid Patient ID or Password. Please check your credentials and try again.');
-                } else {
-                    showError('Unable to fetch report. Please try again later.');
-                }
-                try { await signOut(auth); } catch (signOutError) {
-                    console.log('Sign out error:', signOutError);
-                }
+                console.error('❌ Error fetching report:', error);
+                showError('Unable to fetch report. Please try again later.');
             }
             
             showLoading(false);
@@ -645,10 +714,15 @@
                                 </thead>
                                 <tbody>`;
                         const testFields = (unitsAndRanges[testName] || []);
+                        if (testFields.length === 0) {
+                            testHtml += `<tr><td colspan="4" style="padding:12px 16px; color:#64748b; text-align:center;">No parameters recorded yet.</td></tr>`;
+                        }
                         for (const field of testFields) {
+                            // Support both `reference_range` and `normal_range` (normalized above, but guard here too)
+                            const refRange = field.reference_range || field.normal_range || '';
                             const value = (visit.test_results && visit.test_results[field.name]) || '';
                             const rangeInfo = (typeof window.parseAndCheckRange === 'function') 
-                                ? window.parseAndCheckRange(value, field.reference_range) 
+                                ? window.parseAndCheckRange(value, refRange) 
                                 : { status: 'Normal' };
                                 
                             let colorStyle = '';
@@ -665,9 +739,9 @@
 
                             testHtml += `<tr>
                                 <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #334155;">${field.name}</td>
-                                <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;"><span style="${colorStyle}">${value}</span>${badgeHtml}</td>
+                                <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;"><span style="${colorStyle}">${value || '<em style="color:#94a3b8">Pending</em>'}</span>${badgeHtml}</td>
                                 <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #64748b;">${field.unit || '-'}</td>
-                                <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #64748b;">${field.reference_range || '-'}</td>
+                                <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #64748b;">${refRange || '-'}</td>
                             </tr>`;
                         }
                         testHtml += `</tbody></table></div></div>`;
@@ -866,13 +940,13 @@
                 
                 // Row 3: Address and Password
                 doc.setFontSize(8);
-                doc.text('Main Bazar, Jowar, Buner', 15, yPos + 19);
+                doc.text('Opposite RHC Jowarr, Buner', 15, yPos + 19);
                 doc.setFontSize(7);
                 doc.text(`Password: ${reportData.password}`, 150, yPos + 19);
                 
                 // Row 4: Contact and Access
                 doc.setFontSize(8);
-                doc.text('Phone: +92 313 9232928 | Email: info@hcllab.com', 15, yPos + 24);
+                doc.text('Phone: +92 313 9232928 | Email: hclonline@gmail.com', 15, yPos + 24);
                 doc.setFontSize(7);
                 doc.text('Access: hclonline.vercel.app', 150, yPos + 24);
 
@@ -983,10 +1057,12 @@
                         doc.text(String(value), 70, yPos + 2); // Center aligned
                         doc.setFont('helvetica', 'normal');
                         doc.text(field.unit || '-', 110, yPos + 2); // Center aligned
-                        doc.text(field.reference_range || '-', 150, yPos + 2); // Left aligned
+                        // Support both reference_range and normal_range (Firebase schema uses normal_range)
+                        const refRangePdf = field.reference_range || field.normal_range || '-';
+                        doc.text(refRangePdf, 150, yPos + 2); // Left aligned
                         
                         // Status (exactly like printer.py)
-                        const refRange = field.reference_range || '-';
+                        const refRange = refRangePdf;
                         const { status, color: statusColor } = parseAndCheckRange(value, refRange);
                         let statusSymbol = '';
                         if (status === 'High') statusSymbol = '^ High';
@@ -1040,9 +1116,9 @@
                 doc.setFontSize(8);
                 doc.setTextColor(102, 102, 102); // #666666
                 doc.text('Healthcare Clinical Laboratory - Jowar, Buner | Accredited by Medical Laboratory Standards | ISO 15189:2012 Certified |', 22, yPos + 5);
-                doc.text('Address: Main Bazar, Jowar, Buner | Phone: +92 313 9232928 | Email: info@hcllab.com |', 22, yPos + 9);
+                doc.text('Address: Opposite RHC Jowarr, Buner | Phone: +92 313 9232928 | Email: hclonline@gmail.com |', 22, yPos + 9);
                 doc.setFont('helvetica', 'italic');
-                doc.text('This report is computer generated and does not require a signature.', 22, yPos + 13);
+                // Removed computer generated line
 
                 // Page break if there are large tests
                 if (largeTests.length > 0) {
@@ -1093,13 +1169,13 @@
                 
                 // Row 3: Address and Password
                 doc.setFontSize(8);
-                doc.text('Main Bazar, Jowar, Buner', 15, yPos + 19);
+                doc.text('Opposite RHC Jowarr, Buner', 15, yPos + 19);
                 doc.setFontSize(7);
                 doc.text(`Password: ${reportData.password}`, 150, yPos + 19);
                 
                 // Row 4: Contact and Access
                 doc.setFontSize(8);
-                doc.text('Phone: +92 313 9232928 | Email: info@hcllab.com', 15, yPos + 24);
+                doc.text('Phone: +92 313 9232928 | Email: hclonline@gmail.com', 15, yPos + 24);
                 doc.setFontSize(7);
                 doc.text('Access: hclonline.vercel.app', 150, yPos + 24);
 
@@ -1201,10 +1277,12 @@
                     doc.text(String(value), 70, yPos + 2); // Center aligned
                     doc.setFont('helvetica', 'normal');
                     doc.text(field.unit || '-', 110, yPos + 2); // Center aligned
-                    doc.text(field.reference_range || '-', 150, yPos + 2); // Left aligned
+                    // Support both reference_range and normal_range (Firebase schema uses normal_range)
+                    const refRangePdf = field.reference_range || field.normal_range || '-';
+                    doc.text(refRangePdf, 150, yPos + 2); // Left aligned
                     
                     // Status (exactly like printer.py)
-                    const refRange = field.reference_range || '-';
+                    const refRange = refRangePdf;
                     const { status, color: statusColor } = parseAndCheckRange(value, refRange);
                     let statusSymbol = '';
                     if (status === 'High') statusSymbol = '^ High';
@@ -1258,9 +1336,9 @@
                     doc.setFontSize(8);
                     doc.setTextColor(102, 102, 102); // #666666
                     doc.text('Healthcare Clinical Laboratory - Jowar, Buner | Accredited by Medical Laboratory Standards | ISO 15189:2012 Certified |', 22, yPos + 5);
-                    doc.text('Address: Main Bazar, Jowar, Buner | Phone: +92 313 9232928 | Email: info@hcllab.com |', 22, yPos + 9);
+                    doc.text('Address: Opposite RHC Jowarr, Buner | Phone: +92 313 9232928 | Email: hclonline@gmail.com |', 22, yPos + 9);
                     doc.setFont('helvetica', 'italic');
-                    doc.text('This report is computer generated and does not require a signature.', 22, yPos + 13);
+                    // Removed computer generated line
                 }
             }
 
@@ -1342,13 +1420,13 @@
                 
                 // Row 3: Address and Password
                 doc.setFontSize(8);
-                doc.text('Main Bazar, Jowar, Buner', 15, yPos + 19);
+                doc.text('Opposite RHC Jowarr, Buner', 15, yPos + 19);
                 doc.setFontSize(7);
                 doc.text(`Password: ${reportData.password}`, 150, yPos + 19);
                 
                 // Row 4: Contact and Access
                 doc.setFontSize(8);
-                doc.text('Phone: +92 313 9232928 | Email: info@hcllab.com', 15, yPos + 24);
+                doc.text('Phone: +92 313 9232928 | Email: hclonline@gmail.com', 15, yPos + 24);
                 doc.setFontSize(7);
                 doc.text('Access: hclonline.vercel.app', 150, yPos + 24);
 
@@ -1516,9 +1594,9 @@
                 doc.setFontSize(8);
                 doc.setTextColor(102, 102, 102); // #666666
                 doc.text('Healthcare Clinical Laboratory - Jowar, Buner | Accredited by Medical Laboratory Standards | ISO 15189:2012 Certified |', 22, yPos + 5);
-                doc.text('Address: Main Bazar, Jowar, Buner | Phone: +92 313 9232928 | Email: info@hcllab.com |', 22, yPos + 9);
+                doc.text('Address: Opposite RHC Jowarr, Buner | Phone: +92 313 9232928 | Email: hclonline@gmail.com |', 22, yPos + 9);
                 doc.setFont('helvetica', 'italic');
-                doc.text('This report is computer generated and does not require a signature.', 22, yPos + 13);
+                // Removed computer generated line
 
                 // Page break if there are large tests
                 if (largeTests.length > 0) {
@@ -1569,13 +1647,13 @@
                 
                 // Row 3: Address and Password
                 doc.setFontSize(8);
-                doc.text('Main Bazar, Jowar, Buner', 15, yPos + 19);
+                doc.text('Opposite RHC Jowarr, Buner', 15, yPos + 19);
                 doc.setFontSize(7);
                 doc.text(`Password: ${reportData.password}`, 150, yPos + 19);
                 
                 // Row 4: Contact and Access
                 doc.setFontSize(8);
-                doc.text('Phone: +92 313 9232928 | Email: info@hcllab.com', 15, yPos + 24);
+                doc.text('Phone: +92 313 9232928 | Email: hclonline@gmail.com', 15, yPos + 24);
                 doc.setFontSize(7);
                 doc.text('Access: hclonline.vercel.app', 150, yPos + 24);
 
@@ -1734,9 +1812,9 @@
                     doc.setFontSize(8);
                     doc.setTextColor(102, 102, 102); // #666666
                     doc.text('Healthcare Clinical Laboratory - Jowar, Buner | Accredited by Medical Laboratory Standards | ISO 15189:2012 Certified |', 22, yPos + 5);
-                    doc.text('Address: Main Bazar, Jowar, Buner | Phone: +92 313 9232928 | Email: info@hcllab.com |', 22, yPos + 9);
+                    doc.text('Address: Opposite RHC Jowarr, Buner | Phone: +92 313 9232928 | Email: hclonline@gmail.com |', 22, yPos + 9);
                     doc.setFont('helvetica', 'italic');
-                    doc.text('This report is computer generated and does not require a signature.', 22, yPos + 13);
+                    // Removed computer generated line
                 }
             }
 

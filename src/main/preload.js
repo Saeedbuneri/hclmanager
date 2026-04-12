@@ -32,8 +32,9 @@ contextBridge.exposeInMainWorld(
       recordPayment: (booking_id, amount) => ipcRenderer.invoke('recordPayment', booking_id, amount),
       // Sync Log
       getSyncLog: () => ipcRenderer.invoke('getSyncLog'),
-      clearSyncLog: () => ipcRenderer.invoke('clearSyncLog'),
-      // Extended Analytics
+      clearSyncLog: () => ipcRenderer.invoke('clearSyncLog'),        deletePatient: (id) => ipcRenderer.invoke('deletePatient', id),
+        deleteTest: (id) => ipcRenderer.invoke('deleteTest', id),
+        invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),      // Extended Analytics
       getReferralStats: (filter) => ipcRenderer.invoke('getReferralStats', filter),
       getRepeatPatientRate: (filter) => ipcRenderer.invoke('getRepeatPatientRate', filter),
       getTestPopularityHeatmap: (days) => ipcRenderer.invoke('getTestPopularityHeatmap', days),
@@ -42,5 +43,10 @@ contextBridge.exposeInMainWorld(
       backupDatabase: () => ipcRenderer.invoke('backupDatabase'),
       // Booking with referral
       saveBookingWithRef: (patient, tests, total, discount, referred_by) => ipcRenderer.invoke('saveBookingWithRef', patient, tests, total, discount, referred_by),
+      // Notes & Tasks
+      getNotes: (typeFilter) => ipcRenderer.invoke('getNotes', typeFilter),
+      saveNote: (note) => ipcRenderer.invoke('saveNote', note),
+      deleteNote: (id) => ipcRenderer.invoke('deleteNote', id),
+      toggleNoteDone: (id, isDone) => ipcRenderer.invoke('toggleNoteDone', id, isDone)
   }
 );

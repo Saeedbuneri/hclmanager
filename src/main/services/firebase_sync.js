@@ -1,5 +1,5 @@
 const { initializeApp } = require('firebase/app');
-const { getFirestore, setDoc, getDoc, updateDoc, doc, collection, getDocs } = require('firebase/firestore');
+const { getFirestore, setDoc, getDoc, updateDoc, doc, collection, getDocs, deleteDoc, deleteField } = require('firebase/firestore');
 const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } = require('firebase/auth');
 const dbLocal = require('../db/sqlite');
 
@@ -21,6 +21,7 @@ async function startSyncInterval() {
     setInterval(async () => {
         try {
             await syncBookingsToOnline();
+            await syncNotesToOnline();
         } catch (e) {
             console.error("Firebase Sync Error: Offline or Credentials Missing.", e.message);
         }
@@ -111,7 +112,9 @@ async function syncBookingsToOnline() {
                 age: booking.age ? booking.age.toString() : "",
                 gender: booking.gender || "",
                 contact: booking.contact || "",
-                [`visits.${booking.id}`]: visitData
+                visits: {
+                    [booking.id]: visitData
+                }
             };
 
             // Upload direct onto document ID = patient_id
@@ -189,11 +192,11 @@ async function forceFullSync() {
         console.log('Authenticating as admin to fetch records...');
         const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = require('firebase/auth');
         try {
-            await createUserWithEmailAndPassword(auth, 'admin@lab.local', 'admin123456');
+            await createUserWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123');
         } catch (e) {
             if (e.code === 'auth/email-already-in-use') {
                 try {
-                    await signInWithEmailAndPassword(auth, 'admin@lab.local', 'admin123456');
+                    await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123');
                 } catch(signInErr) {}
             }
         }
@@ -225,11 +228,11 @@ async function syncTestCatalog() {
         const tests = await dbLocal.getTests();
         
         try {
-            await signInWithEmailAndPassword(auth, 'admin@lab.local', 'admin123456');
+            await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123');
         } catch(e) {
             const { createUserWithEmailAndPassword } = require('firebase/auth');
             try {
-               await createUserWithEmailAndPassword(auth, 'admin@lab.local', 'admin123456');
+               await createUserWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123');
             } catch(e2) {}
         }
 
@@ -255,4 +258,98 @@ async function syncTestCatalog() {
     }
 }
 
-module.exports = { startSyncInterval, syncBookingsToOnline, fetchManualSyncDetails, updateManualSyncDetails, forceFullSync, syncTestCatalog };
+async function syncNotesToOnline() {
+    try {
+        const unsyncedNotes = await dbLocal.getUnsyncedNotes() || [];
+        if (unsyncedNotes.length === 0) return;
+
+        console.log(`[Sync] Found ${unsyncedNotes.length} unsynced notes/tasks. Syncing to Cloud...`);
+        
+        try {
+            await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123');
+        } catch(e) {
+            const { createUserWithEmailAndPassword } = require('firebase/auth');
+            try { await createUserWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123'); } catch(e2) {}
+        }
+
+        let count = 0;
+        for (let note of unsyncedNotes) {
+            const noteRef = doc(fsDb, "notes", note.id.toString());
+            const payload = {
+                type: note.type,
+                title: note.title,
+                content: note.content || "",
+                is_done: note.is_done ? true : false,
+                date_created: note.date_created,
+                due_date: note.due_date || null
+            };
+            await setDoc(noteRef, payload, { merge: true });
+            await dbLocal.setNoteSynced(note.id);
+            count++;
+        }
+        
+        console.log(`[Sync] Successfully Synced ${count} notes to Cloud`);
+    } catch(err) {
+        console.error('[Sync] Notes Sync Failed: ', err);
+    }
+}
+
+async function deleteBookingFromCloud(patientId, bookingId) {
+    try {
+        const { signInWithEmailAndPassword } = require('firebase/auth');
+        try { await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123'); } catch(e) {}
+        const docRef = doc(fsDb, "reports", patientId.toString());
+        await updateDoc(docRef, {
+            [`visits.${bookingId}`]: deleteField()
+        });
+        console.log(`Deleted booking ${bookingId} from cloud`);
+        return true;
+    } catch(e) {
+        console.error("Failed to delete booking from cloud", e);
+        return false;
+    }
+}
+
+async function deletePatientFromCloud(patientId) {
+    try {
+        const { signInWithEmailAndPassword } = require('firebase/auth');
+        try { await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123'); } catch(e) {}
+        const docRef = doc(fsDb, "reports", patientId.toString());
+        await deleteDoc(docRef);
+        console.log(`Deleted patient ${patientId} from cloud`);
+        return true;
+    } catch(e) {
+        console.error("Failed to delete patient from cloud", e);
+        return false;
+    }
+}
+
+async function deleteTestFromCloud(testId) {
+    try {
+        const { signInWithEmailAndPassword } = require('firebase/auth');
+        try { await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123'); } catch(e) {}
+        const docRef = doc(fsDb, "tests_catalog", testId.toString());
+        await deleteDoc(docRef);
+        console.log(`Deleted test ${testId} from cloud`);
+        return true;
+    } catch(e) {
+        console.error("Failed to delete test from cloud", e);
+        return false;
+    }
+}
+
+async function deleteNoteFromCloud(noteId) {
+    try {
+        const { signInWithEmailAndPassword } = require('firebase/auth');
+        try { await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123'); } catch(e) {}
+        const docRef = doc(fsDb, "notes", noteId.toString());
+        await deleteDoc(docRef);
+        console.log(`Deleted note ${noteId} from cloud`);
+        return true;
+    } catch(e) {
+        console.error("Failed to delete note from cloud", e);
+        return false;
+    }
+}
+
+module.exports = { startSyncInterval, syncBookingsToOnline, syncNotesToOnline, fetchManualSyncDetails, updateManualSyncDetails, forceFullSync, syncTestCatalog, deleteBookingFromCloud, deletePatientFromCloud, deleteTestFromCloud, deleteNoteFromCloud };

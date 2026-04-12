@@ -100,8 +100,7 @@
         const card = document.createElement('div');
                 card.className = 'test-card';
                 card.innerHTML = `
-                    <span class="edit-btn" onclick="editTest(${test.id})">Edit</span>
-                    <div style="font-size:10px; color:#94a3b8; text-transform:uppercase; font-weight:bold; margin-bottom:4px;">${test.category || 'General'}</div>
+                    <span class="edit-btn" onclick="editTest(${test.id})">Edit</span>                      <span class="edit-btn" onclick="deleteTest(${test.id})" style="right: 50px; background:#ef4444; color:white;">Delete</span>                    <div style="font-size:10px; color:#94a3b8; text-transform:uppercase; font-weight:bold; margin-bottom:4px;">${test.category || 'General'}</div>
                     <h3>${test.name}</h3>
                     <div class="test-price">Rs. ${test.price}</div>
                     <div class="test-params">
@@ -135,6 +134,22 @@ function addParamRow(name = '', ref = '', unit = 'N/A', type = 'number') {
                 <button type="button" onclick="this.parentElement.remove()" style="background:#ef4444; color:white; border:none; padding:0 10px; cursor:pointer; border-radius:4px;" title="Remove this parameter">&times;</button>
             `;
             container.appendChild(row);
+        }
+
+        async function deleteTest(id) {
+            if (confirm('Are you sure you want to permanently delete this test? This will also remove it from the cloud catalog.')) {
+                try {
+                    const res = await window.api.invoke('deleteTest', id);
+                    if (res && res.success) {
+                        alert('Test deleted successfully.');
+                        loadTests();
+                    } else {
+                        alert('Failed to delete test: ' + (res ? res.error : 'Unknown error'));
+                    }
+                } catch(e) {
+                    console.error(e);
+                }
+            }
         }
 
         function editTest(id) {

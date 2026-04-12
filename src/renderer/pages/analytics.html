@@ -175,11 +175,33 @@
             <button onclick="window.print()" class="btn btn-ghost btn-sm">🖨 Print</button>
         </div>
         
-        <div class="analytics-grid">
+        <div class="analytics-grid" style="grid-template-columns: repeat(4, 1fr);">
             <div class="an-card">
-                <div class="an-title">Total Revenue</div>
+                <div class="an-title">Total Billed Revenue</div>
                 <div class="an-value" id="valTotalRev">Rs 0</div>
-                <div class="an-trend trend-up" id="trendRev">Based on selected range</div>
+                <div class="an-trend" id="trendRev" style="color:#64748b;">Gross amount charged</div>
+            </div>
+            <div class="an-card">
+                <div class="an-title">💵 Total Collected</div>
+                <div class="an-value trend-up" id="valCollected">Rs 0</div>
+                <div class="an-trend" style="color:#10b981;">Actual receipts</div>
+            </div>
+            <div class="an-card">
+                <div class="an-title">📉 Total Expenses</div>
+                <div class="an-value trend-down" id="valExpenses">Rs 0</div>
+                <div class="an-trend" style="color:#ef4444;">From Notes/Expenses</div>
+            </div>
+            <div class="an-card">
+                <div class="an-title">💎 Net Profit</div>
+                <div class="an-value trend-up" id="valNetProfit">Rs 0</div>
+                <div class="an-trend" style="color:#10b981;">Collected - Expenses</div>
+            </div>
+        </div>
+        <div class="analytics-grid" style="grid-template-columns: repeat(4, 1fr); margin-top: 20px;">
+            <div class="an-card">
+                <div class="an-title">⚠️ Outstanding Dues</div>
+                <div class="an-value trend-down" id="valOutstanding">Rs 0</div>
+                <div class="an-trend" style="color:#ef4444;">Uncollected balance</div>
             </div>
             <div class="an-card">
                 <div class="an-title">Total Visits</div>
@@ -189,7 +211,7 @@
             <div class="an-card">
                 <div class="an-title">Today's Revenue</div>
                 <div class="an-value" id="valTodayRev">Rs 0</div>
-                <div class="an-trend trend-up" style="color: #64748b;">Cash collected today</div>
+                <div class="an-trend" style="color:#64748b;">Billed today</div>
             </div>
             <div class="an-card">
                 <div class="an-title">Today's Visits</div>
@@ -295,10 +317,21 @@
             );
             try {
                 const data = await window.api.getAnalyticsData(filterType);
-                document.getElementById('valTotalRev').innerText    = 'Rs ' + (data.overview.total_revenue || 0).toLocaleString();
-                document.getElementById('valTotalVisits').innerText = data.overview.total_visits || 0;
-                document.getElementById('valTodayRev').innerText    = 'Rs ' + (data.overview.today_revenue || 0).toLocaleString();
-                document.getElementById('valTodayVisits').innerText = data.overview.today_visits || 0;
+                const ov = data.overview || {};
+                const netProfit = ov.net_profit || 0;
+                document.getElementById('valTotalRev').innerText      = 'Rs ' + (ov.total_revenue    || 0).toLocaleString();
+                document.getElementById('valCollected').innerText     = 'Rs ' + (ov.total_collected  || 0).toLocaleString();
+                document.getElementById('valExpenses').innerText      = 'Rs ' + (ov.total_expenses   || 0).toLocaleString();
+                document.getElementById('valNetProfit').innerText     = (netProfit < 0 ? '- Rs ' : 'Rs ') + Math.abs(netProfit).toLocaleString();
+                document.getElementById('valOutstanding').innerText   = 'Rs ' + (ov.total_outstanding|| 0).toLocaleString();
+                document.getElementById('valTotalVisits').innerText   = ov.total_visits  || 0;
+                document.getElementById('valTodayRev').innerText      = 'Rs ' + (ov.today_revenue    || 0).toLocaleString();
+                document.getElementById('valTodayVisits').innerText   = ov.today_visits  || 0;
+
+                const outEl = document.getElementById('valOutstanding');
+                outEl.style.color = (ov.total_outstanding || 0) > 0 ? '#ef4444' : '#10b981';
+                const profitEl = document.getElementById('valNetProfit');
+                profitEl.style.color = (ov.net_profit || 0) < 0 ? '#ef4444' : '#10b981';
 
                 const topTestsList = document.getElementById('topTestsList');
                 topTestsList.innerHTML = '';

@@ -14,6 +14,7 @@ const HCL_NAV = [
     { href: 'test_manager.html',    label: 'Test Catalog',     icon: '📋' },
     { href: 'inventory.html',       label: 'Inventory',        icon: '🧪', shortcut: '⌃I' },
     { href: 'analytics.html',       label: 'Analytics',        icon: '📈' },
+    { href: 'notes.html',           label: 'Notes & Tasks',    icon: '📝', shortcut: '⌃N' },
     { section: 'System' },
     { href: 'sync_manager.html',    label: 'Sync Manager',     icon: '☁️' },
     { href: 'admin_settings.html',  label: 'Admin Settings',   icon: '⚙️' },

@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <title>HCL – Dashboard</title>
     <link rel="stylesheet" href="../assets/style.css">
     <script src="../assets/shared.js"></script>
@@ -38,6 +39,12 @@
                 <p class="stat-val" id="completedTests" style="color: #8b5cf6;">0</p>
                 <div style="font-size: 12px; margin-top: 10px;">Synced successfully to cloud</div>
             </div>
+
+            <div class="stat-card">
+                <h3>Today's Revenue</h3>
+                <p class="stat-val" id="todayRevenue" style="color: #10b981;">Rs 0</p>
+                <div style="font-size: 12px; margin-top: 10px;">Gross estimated</div>
+            </div>
         </div>
 
         <div style="margin-top: 40px; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
@@ -58,10 +65,12 @@
             const todayStr = new Date().toLocaleDateString();
             const todayBookings = allBookings.filter(b => new Date(b.date).toLocaleDateString() === todayStr);
             const completedToday = todayBookings.filter(b => b.status === "Completed");
+            const todayRev = todayBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
 
             document.getElementById('todayPatients').textContent = todayBookings.length;
             document.getElementById('pendingTests').textContent = pendingBookings.length;
             document.getElementById('completedTests').textContent = completedToday.length;
+            document.getElementById('todayRevenue').textContent = 'Rs ' + todayRev.toLocaleString();
 
             const queueContainer = document.getElementById('recentQueue');
             if (todayBookings.length === 0) {

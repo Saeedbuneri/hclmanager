@@ -3,6 +3,13 @@
    Include in every page BEFORE page-specific scripts
    ================================================================ */
 
+// ── Auth Enforcement ──────────────────────────────────────────
+if (!window.location.pathname.includes('login.html')) {
+    if (localStorage.getItem('isLoggedIn') !== 'true') {
+        window.location.href = 'login.html';
+    }
+}
+
 // ── Toast Notification System ─────────────────────────────────
 function showToast(message, type = 'info', duration = 3500) {
     if (!document.getElementById('toast-container')) {
@@ -118,4 +125,11 @@ document.addEventListener('DOMContentLoaded', function() {
     initDarkMode();
     initErrorHandling();
     initKeyboardShortcuts();
+
+    // Register Service Worker for slow networks
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('../sw.js', { scope: '../' })
+            .then(() => console.log('HCL Service Worker Registered'))
+            .catch(err => console.error('SW Registration Failed', err));
+    }
 });

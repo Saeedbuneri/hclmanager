@@ -382,14 +382,156 @@ input:focus, select:focus, textarea:focus {
 .add-new { background: var(--primary-light); border: 2px dashed var(--primary); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--primary-dark); font-weight: 700; text-align: center; }
 .add-new:hover { background: #bae6fd; }
 
+/* ── Hamburger Button (mobile only) ──────────────────────────── */
+.hamburger {
+  display: none;
+  position: fixed; top: 12px; left: 12px; z-index: 200;
+  background: var(--primary); color: white;
+  border: none; border-radius: 10px;
+  width: 44px; height: 44px; font-size: 20px;
+  cursor: pointer; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(14,165,233,0.4);
+  transition: var(--transition);
+}
+.hamburger:active { transform: scale(0.92); }
+
+/* ── Mobile Overlay ───────────────────────────────────────────── */
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); z-index: 99;
+  backdrop-filter: blur(2px);
+}
+.sidebar-overlay.show { display: block; }
+
 /* ── Responsive ───────────────────────────────────────────────── */
-@media(max-width:768px) {
-  .sidebar { transform: translateX(-100%); }
-  .sidebar.open { transform: translateX(0); }
-  .main-content { margin-left: 0; padding: 18px; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  /* Hamburger visible */
+  .hamburger { display: flex; }
+
+  /* Sidebar becomes a slide-in drawer */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    z-index: 150; width: 270px;
+  }
+  .sidebar.open { transform: translateX(0); box-shadow: 4px 0 30px rgba(0,0,0,0.3); }
+
+  /* Main content fills full width, gives room for hamburger */
+  .main-content {
+    margin-left: 0 !important;
+    padding: 16px 14px 80px;   /* bottom pad for safe area */
+    padding-top: 64px;          /* room for hamburger button */
+  }
+
+  /* Header */
+  header h1 { font-size: 18px !important; }
+  header p { font-size: 12px !important; }
+
+  /* Stats grids */
+  .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+  .an-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+  .an-value { font-size: 20px !important; }
+  .stat-value { font-size: 22px !important; }
+
+  /* Multi-column grids → 1 col */
+  .grid-2, .grid-3, .chart-row,
+  [style*="grid-template-columns: 1fr 1fr 1fr"],
+  [style*="grid-template-columns:1fr 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Tables → card layout on mobile */
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 580px; }
+
+  /* Override table to card style for patient history (explicit) */
+  #historyTable { min-width: unset; }
+  #historyTable thead { display: none; }
+  #historyTable tbody tr {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    padding: 14px;
+    box-shadow: var(--shadow);
+  }
+  #historyTable tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  #historyTable tbody td:last-child { border-bottom: none; padding-top: 10px; }
+  #historyTable tbody td[style*="display: flex"] { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+
+  /* Buttons bigger tap targets */
+  .btn { padding: 10px 16px; font-size: 14px; min-height: 44px; }
+  .btn-sm { padding: 8px 14px; font-size: 13px; min-height: 38px; }
+  button { min-height: 40px; }
+
+  /* Filter tabs scroll horizontally */
+  .analytics-filters,
+  [class*="filter-tab"],
+  header > div:last-child {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    padding-bottom: 4px;
+  }
+  .filter-btn { white-space: nowrap; flex-shrink: 0; }
+
+  /* Search box stacks */
+  .search-box { flex-direction: column; }
+  .search-box input { width: 100%; }
+  .search-box button { width: 100%; min-height: 44px; }
+
+  /* Tabs wrap */
+  .tabs { flex-wrap: wrap; gap: 6px; }
+  .tab-btn { padding: 10px 14px; font-size: 13px; min-height: 40px; }
+
+  /* Modal full-screen on mobile */
+  .modal-content, .modal > div {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    padding: 18px !important;
+    margin: auto;
+  }
+
+  /* Analytics header stacks */
+  header[style*="space-between"] { flex-direction: column !important; align-items: flex-start !important; gap: 12px; }
+
+  /* Chart boxes collapse cleanly */
+  .chart-box, .chart-container { padding: 14px; }
+
+  /* Cards padding tighter */
+  .card, .an-card, .stat-card, .inventory-card { padding: 14px; }
+
+  /* Visit cards in patient modal */
+  .visit-card { padding: 12px; }
+  .visit-header { flex-direction: column; gap: 8px; }
+
+  /* Form inputs bigger (must be 16px min to prevent iOS zoom) */
+  input[type="text"], input[type="number"], input[type="email"],
+  input[type="password"], input[type="date"], select, textarea {
+    padding: 12px 14px; font-size: 16px; min-height: 44px;
+  }
+
+  /* New booking form: 2-col → 1-col */
+  [style*="grid-template-columns: 1fr 1fr"],
+  [style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Login card */
+  .login-card { padding: 24px 18px; }
 }
 
 /* ── Print ────────────────────────────────────────────────────── */
-@media print { .sidebar, .no-print { display: none !important; } .main-content { margin-left: 0 !important; } body { background: white !important; } }
+@media print {
+  .sidebar, .no-print, .hamburger, .sidebar-overlay { display: none !important; }
+  .main-content { margin-left: 0 !important; padding-top: 0 !important; }
+  body { background: white !important; }
+}

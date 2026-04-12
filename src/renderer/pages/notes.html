@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HCL – Notes & Tasks</title>
+    <link rel="stylesheet" href="../assets/style.css">
+    <script src="../assets/shared.js"></script>
+    <script src="../assets/sidebar.js"></script>
+    <style>
+        .filter-ribbon {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: var(--surface);
+            padding: 12px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .filter-btn {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text);
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .notes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .note-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border: 1px solid var(--border);
+            position: relative;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .note-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        .note-card.is-done {
+            opacity: 0.7;
+            background: var(--surface-2);
+        }
+        .note-card.is-done .note-title {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+        
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .note-type-badge {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+        .type-Note { background: #e0e7ff; color: #4338ca; }
+        .type-Expense { background: #fee2e2; color: #b91c1c; }
+        .type-Reminder { background: #fef3c7; color: #b45309; }
+
+        .note-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0;
+            line-height: 1.3;
+        }
+
+        .note-content {
+            font-size: 13px;
+            color: var(--text-light);
+            line-height: 1.5;
+            white-space: pre-wrap;
+            flex-grow: 1;
+        }
+
+        .note-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+            padding-top: 12px;
+            border-top: 1px dashed var(--border);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .note-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .action-btn:hover { opacity: 1; background: var(--surface-2); }
+
+        /* Custom Checkbox */
+        .done-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--success);
+        }
+    </style>
+</head>
+<body>
+<div id="sidebar-container"></div>
+
+<div class="main-content">
+    <div class="page-header">
+        <div>
+            <h1>📝 Notes & Tasks</h1>
+            <p>Manage expenses, laboratory reminders, and general notes.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openNoteModal()">➕ Add Note</button>
+    </div>
+
+    <div class="filter-ribbon">
+        <button class="filter-btn active" onclick="loadNotes('All')" data-type="All">All</button>
+        <button class="filter-btn" onclick="loadNotes('Note')" data-type="Note">📝 Notes</button>
+        <button class="filter-btn" onclick="loadNotes('Expense')" data-type="Expense">💰 Expenses</button>
+        <button class="filter-btn" onclick="loadNotes('Reminder')" data-type="Reminder">⏰ Reminders</button>
+    </div>
+
+    <div id="notesContainer" class="notes-grid">
+        <!-- Notes rendered here -->
+    </div>
+</div>
+
+<!-- Add/Edit Note Modal -->
+<div class="modal-overlay" id="noteModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">Add Item</h3>
+            <button class="modal-close" onclick="closeNoteModal()">×</button>
+        </div>
+        
+        <input type="hidden" id="noteId">
+        
+        <div class="form-group">
+            <label>Type</label>
+            <select id="noteType" class="input" onchange="toggleDueDate()">
+                <option value="Note">📝 General Note</option>
+                <option value="Expense">💰 Expense</option>
+                <option value="Reminder">⏰ Reminder / Task</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Title / Amount</label>
+            <input type="text" id="noteTitle" class="input" placeholder="e.g. Bought Reagents, Clean Lab...">
+        </div>
+
+        <div class="form-group" id="dueDateContainer" style="display: none;">
+            <label>Due Date (Optional)</label>
+            <input type="date" id="noteDueDate" class="input">
+        </div>
+
+        <div class="form-group">
+            <label>Details</label>
+            <textarea id="noteContent" class="input" rows="4" placeholder="Additional info..."></textarea>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeNoteModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveNote()">💾 Save</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentFilter = 'All';
+
+    async function loadNotes(filterType = currentFilter) {
+        currentFilter = filterType;
+        
+        // Update filter buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.type === filterType);
+        });
+
+        const container = document.getElementById('notesContainer');
+        try {
+            const notes = await window.api.getNotes(filterType);
+            
+            if (notes.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px; color: var(--text-muted);">
+                        <div style="font-size: 40px; margin-bottom: 15px;">📭</div>
+                        <h3>No items found</h3>
+                        <p>Click 'Add Note' to create one for ${filterType}.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = notes.map(n => {
+                const isTask = n.type === 'Reminder';
+                const dueText = n.due_date ? ` • Due: ${fmtDate(n.due_date)}` : '';
+                const createdText = fmtDate(n.date_created.split('T')[0]);
+                
+                return `
+                    <div class="note-card ${n.is_done ? 'is-done' : ''}">
+                        <div class="note-header">
+                            <span class="note-type-badge type-${n.type}">${n.type}</span>
+                            <div class="note-actions">
+                                ${isTask ? `<input type="checkbox" class="done-checkbox" ${n.is_done ? 'checked' : ''} onchange="toggleDone(${n.id}, this.checked)" title="Mark as done">` : ''}
+                                <button class="action-btn" onclick="editNote(${n.id})" title="Edit">✏️</button>
+                                <button class="action-btn" onclick="deleteNote(${n.id})" title="Delete">🗑️</button>
+                            </div>
+                        </div>
+                        <h4 class="note-title">${n.title}</h4>
+                        ${n.content ? `<div class="note-content">${n.content}</div>` : ''}
+                        <div class="note-footer">
+                            <span>📅 ${createdText}${dueText}</span>
+                        </div>
+                    </div>`;
+            }).join('');
+            
+        } catch (error) {
+            container.innerHTML = `<p style="color: red;">Error loading notes.</p>`;
+            console.error(error);
+        }
+    }
+
+    function toggleDueDate() {
+        const type = document.getElementById('noteType').value;
+        const dueContainer = document.getElementById('dueDateContainer');
+        if (type === 'Reminder') {
+            dueContainer.style.display = 'block';
+        } else {
+            dueContainer.style.display = 'none';
+            document.getElementById('noteDueDate').value = '';
+        }
+    }
+
+    function openNoteModal() {
+        document.getElementById('modalTitle').textContent = 'Add Item';
+        document.getElementById('noteId').value = '';
+        document.getElementById('noteType').value = currentFilter !== 'All' ? currentFilter : 'Note';
+        document.getElementById('noteTitle').value = '';
+        document.getElementById('noteContent').value = '';
+        document.getElementById('noteDueDate').value = '';
+        toggleDueDate();
+        
+        document.getElementById('noteModal').classList.add('open');
+        setTimeout(() => document.getElementById('noteTitle').focus(), 100);
+    }
+
+    function closeNoteModal() {
+        document.getElementById('noteModal').classList.remove('open');
+    }
+
+    async function editNote(id) {
+        try {
+            const notes = await window.api.getNotes('All');
+            const note = notes.find(n => n.id === id);
+            if (!note) return;
+
+            document.getElementById('modalTitle').textContent = 'Edit Item';
+            document.getElementById('noteId').value = note.id;
+            document.getElementById('noteType').value = note.type;
+            document.getElementById('noteTitle').value = note.title;
+            document.getElementById('noteContent').value = note.content || '';
+            document.getElementById('noteDueDate').value = note.due_date || '';
+            toggleDueDate();
+            
+            document.getElementById('noteModal').classList.add('open');
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function saveNote() {
+        const note = {
+            id: document.getElementById('noteId').value || null,
+            type: document.getElementById('noteType').value,
+            title: document.getElementById('noteTitle').value.trim(),
+            content: document.getElementById('noteContent').value.trim(),
+            due_date: document.getElementById('noteDueDate').value || null
+        };
+
+        if (!note.title) {
+            showToast('Please enter a title/amount.', 'error');
+            return;
+        }
+
+        try {
+            await window.api.saveNote(note);
+            showToast('Item saved successfully.', 'success');
+            closeNoteModal();
+            loadNotes();
+        } catch (error) {
+            showToast('Error saving item.', 'error');
+            console.error(error);
+        }
+    }
+
+    async function deleteNote(id) {
+        if (!confirm('Are you sure you want to delete this item?')) return;
+        try {
+            await window.api.deleteNote(id);
+            showToast('Item deleted.', 'info');
+            loadNotes();
+        } catch (error) {
+            showToast('Error deleting item.', 'error');
+            console.error(error);
+        }
+    }
+
+    async function toggleDone(id, isDone) {
+        try {
+            await window.api.toggleNoteDone(id, isDone);
+            loadNotes(); // Refresh to re-order and fade out
+        } catch (error) {
+            showToast('Error updating status.', 'error');
+            console.error(error);
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        initSidebar('notes.html');
+        loadNotes();
+    });
+</script>
+</body>
+</html>

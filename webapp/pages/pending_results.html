@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <title>HCL – Pending Results</title>
     <link rel="stylesheet" href="../assets/style.css">
     <script src="../assets/shared.js"></script>
@@ -161,7 +162,7 @@ async function loadPending() {
 
 // ── Tests List Modal ────────────────────────────────────────────
 function openTestsModal(bookingId) {
-    const p = latestPendings.find(b => b.id === bookingId);
+    const p = latestPendings.find(b => b.id == bookingId);
     if (!p) return;
     currentBookingData = p;
     document.getElementById('testsModalTitle').textContent = 'Tests — ' + p.patient_name;

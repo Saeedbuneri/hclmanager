@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <title>HCL – New Booking</title>
     <link rel="stylesheet" href="../assets/style.css">
     <script src="../assets/shared.js"></script>
@@ -137,14 +138,14 @@
             filtered.forEach(test => {
                 const div = document.createElement('div');
                 div.className = 'test-item';
-                div.onclick = () => addToCart(test.id, test.name, test.price);
+                div.onclick = () => addToCart(test.id, test.name, test.price, test.parameters);
                 div.innerHTML = `<span>${test.name}</span><span style="font-weight:bold; color:#0ea5e9;">Rs. ${test.price}</span>`;
                 list.appendChild(div);
             });
         }
 
-        function addToCart(id, name, price) {
-            cart.push({id, name, price});
+        function addToCart(id, name, price, parameters) {
+            cart.push({id, name, price, parameters});
             updateCartUI();
         }
 

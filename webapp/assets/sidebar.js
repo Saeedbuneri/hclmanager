@@ -10,10 +10,19 @@ const HCL_NAV = [
     { href: 'new_booking.html',     label: 'New Booking',      icon: '➕', shortcut: '⌃B' },
     { href: 'pending_results.html', label: 'Pending Results',  icon: '🔬', shortcut: '⌃R' },
     { section: 'Management' },
-    { href: 'patient_history.html', label: 'Patient History',  icon: '📁', shortcut: '⌃H' }
+    { href: 'patient_history.html', label: 'Patient History',  icon: '📁', shortcut: '⌃H' },
+    { href: 'analytics.html',       label: 'Analytics',        icon: '📈', shortcut: '⌃A' }
 ];
 
 function initSidebar(activePage) {
+    // ── Ensure viewport meta is set ───────────────────────────────
+    if (!document.querySelector('meta[name="viewport"]')) {
+        const vp = document.createElement('meta');
+        vp.name = 'viewport';
+        vp.content = 'width=device-width, initial-scale=1, maximum-scale=1';
+        document.head.appendChild(vp);
+    }
+
     const container = document.getElementById('sidebar-container');
     if (!container) return;
 
@@ -57,6 +66,53 @@ function initSidebar(activePage) {
                 <li><a href="login.html?clear=1" style="display:flex;align-items:center;gap:10px;padding:9px 12px;color:#ef4444;text-decoration:none;font-size:13px;font-weight:600;border-radius:6px;transition:background 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.12)'" onmouseout="this.style.background=''"><span>🚪</span> Logout</a></li>
             </ul>
         </div>`;
+
+    // ── Inject Hamburger + Overlay ────────────────────────────────
+    if (!document.getElementById('hcl-hamburger')) {
+        const hamburger = document.createElement('button');
+        hamburger.id = 'hcl-hamburger';
+        hamburger.className = 'hamburger';
+        hamburger.setAttribute('aria-label', 'Open menu');
+        hamburger.innerHTML = '☰';
+        document.body.appendChild(hamburger);
+
+        const overlay = document.createElement('div');
+        overlay.id = 'hcl-overlay';
+        overlay.className = 'sidebar-overlay';
+        document.body.appendChild(overlay);
+
+        function openSidebar() {
+            container.classList.add('open');
+            overlay.classList.add('show');
+            hamburger.innerHTML = '✕';
+            hamburger.setAttribute('aria-label', 'Close menu');
+        }
+        function closeSidebar() {
+            container.classList.remove('open');
+            overlay.classList.remove('show');
+            hamburger.innerHTML = '☰';
+            hamburger.setAttribute('aria-label', 'Open menu');
+        }
+
+        hamburger.addEventListener('click', () => {
+            container.classList.contains('open') ? closeSidebar() : openSidebar();
+        });
+        overlay.addEventListener('click', closeSidebar);
+
+        // Close sidebar when a nav link is tapped
+        container.addEventListener('click', e => {
+            if (e.target.closest('a') && window.innerWidth <= 768) closeSidebar();
+        });
+
+        // Swipe-to-open: swipe right from left edge
+        let touchStartX = 0;
+        document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+        document.addEventListener('touchend', e => {
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            if (touchStartX < 30 && dx > 60) openSidebar();
+            if (dx < -60 && container.classList.contains('open')) closeSidebar();
+        }, { passive: true });
+    }
 
     // Start sync monitoring
     _updateSyncStatus();

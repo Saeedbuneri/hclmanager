@@ -88,6 +88,19 @@ function init() {
         PRIMARY KEY (booking_id, test_id)
       )
     `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL DEFAULT 'Note',
+        title TEXT NOT NULL,
+        content TEXT,
+        is_done INTEGER DEFAULT 0,
+        date_created TEXT,
+        due_date TEXT,
+        synced INTEGER DEFAULT 0
+      )
+    `);
   });
   
   // Seed initial test data if catalog is empty
@@ -469,26 +482,70 @@ let dateCond = "";
     }
 
   // 1. High-level Overview Stats
+  //    total_revenue = gross billed (total_amount - discount)
+  //    total_collected = actual cash received (amount_paid, or full amount if no partial pay)
+  //    today_revenue / today_collected = same but only for today
   const statsQuery = `
       SELECT 
           COUNT(b.id) as total_visits,
-          SUM(b.total_amount) as total_revenue,
-          (SELECT COUNT(id) FROM patients) as total_patients,
-          (SELECT COUNT(id) FROM bookings WHERE datetime(date, 'localtime') >= datetime('now', 'localtime', 'start of day')) as today_visits,
-          (SELECT SUM(total_amount) FROM bookings WHERE datetime(date, 'localtime') >= datetime('now', 'localtime', 'start of day')) as today_revenue
+          COALESCE(SUM(b.total_amount), 0)                                                                    as total_revenue,
+          COALESCE(SUM(
+              CASE
+                WHEN b.amount_paid > 0 THEN b.amount_paid
+                ELSE b.total_amount
+              END
+          ), 0)                                                                                               as total_collected,
+          COALESCE(SUM(MAX(0, b.total_amount - 
+              CASE WHEN b.amount_paid > 0 THEN b.amount_paid
+                   ELSE b.total_amount END)), 0)                                                              as total_outstanding,
+          (SELECT COUNT(id) FROM patients)                                                                    as total_patients,
+          (SELECT COUNT(id) FROM bookings
+           WHERE datetime(date,'localtime') >= datetime('now','localtime','start of day'))                    as today_visits,
+          COALESCE((SELECT SUM(total_amount) FROM bookings
+           WHERE datetime(date,'localtime') >= datetime('now','localtime','start of day')), 0)                as today_revenue,
+          COALESCE((SELECT SUM(
+              CASE WHEN amount_paid > 0 THEN amount_paid
+                   ELSE total_amount END)
+           FROM bookings
+           WHERE datetime(date,'localtime') >= datetime('now','localtime','start of day')), 0)                as today_collected
       FROM bookings b
       WHERE ${dateCond}
   `;
-  data.overview = await get(statsQuery);
-  data.overview.total_revenue = data.overview.total_revenue || 0;
-  data.overview.today_revenue = data.overview.today_revenue || 0;
+  data.overview = await get(statsQuery) || {};
+  
+  // Expenses Queries
+  const expCond = dateCond.replace(/b\.date/g, 'date_created');
+  const expensesQuery = `
+      SELECT 
+          COALESCE(SUM(CAST(title AS REAL)), 0) as total_expenses,
+          COALESCE((SELECT SUM(CAST(title AS REAL)) FROM notes 
+                    WHERE type = 'Expense' AND datetime(date_created,'localtime') >= datetime('now','localtime','start of day')), 0) as today_expenses
+      FROM notes
+      WHERE type = 'Expense' AND ${expCond}
+  `;
+  const expResult = await get(expensesQuery) || {};
+  // Normalize nulls and ensure expenses are always positive integers
+  data.overview.total_revenue     = Math.round(data.overview.total_revenue     || 0);
+  data.overview.total_collected   = Math.round(data.overview.total_collected   || 0);
+  data.overview.total_outstanding = Math.round(data.overview.total_outstanding || 0);
+  data.overview.today_revenue     = Math.round(data.overview.today_revenue     || 0);
+  data.overview.today_collected   = Math.round(data.overview.today_collected   || 0);
+  data.overview.total_expenses    = Math.abs(Math.round(expResult.total_expenses || 0));
+  data.overview.today_expenses    = Math.abs(Math.round(expResult.today_expenses || 0));
+  data.overview.net_profit        = data.overview.total_collected - data.overview.total_expenses;
 
   // 2. Charts Data: Revenue & Visits per day
+  //    revenue = gross billed (after discount) per day
+  //    collected = actual cash per day
   const dailyQuery = `
       SELECT 
           date(b.date, 'localtime') as day, 
           COUNT(b.id) as visits, 
-          SUM(b.total_amount) as revenue
+          COALESCE(SUM(b.total_amount), 0) as revenue,
+          COALESCE(SUM(
+              CASE WHEN b.amount_paid > 0 THEN b.amount_paid
+                   ELSE b.total_amount END
+          ), 0) as collected
       FROM bookings b
       WHERE ${dateCond}
       GROUP BY day
@@ -496,7 +553,7 @@ let dateCond = "";
   `;
   data.dailyTrends = await all(dailyQuery);
 
-  // 3. Top Tests inside this time range
+  // 3. Top Tests in this time range (fixed: added GROUP BY)
   const topTestsQuery = `
         SELECT 
             t.name as test_name, 
@@ -505,11 +562,13 @@ let dateCond = "";
         JOIN bookings b ON r.booking_id = b.id
         JOIN tests_catalog t ON r.test_id = t.id
         WHERE ${dateCond}
-      LIMIT 10
+        GROUP BY t.id, t.name
+        ORDER BY count DESC
+        LIMIT 10
   `;
   data.topTests = await all(topTestsQuery);
 
-  // 4. Financial Breakdown by Status
+  // 4. Booking status breakdown
   const statusQuery = `
       SELECT status, COUNT(*) as count 
       FROM bookings b 
@@ -528,16 +587,29 @@ let dateCond = "";
   `;
   data.genderDemographic = await all(genderQuery);
 
-  // 6. Revenue & Count by Category
-    const categoryQuery = `
-          SELECT t.category as category, SUM(t.price) as revenue, COUNT(r.test_id) as count
-          FROM results r
-          JOIN tests_catalog t ON r.test_id = t.id
-          JOIN bookings b ON r.booking_id = b.id
-          WHERE ${dateCond}
-          GROUP BY t.category
-    `;
-    data.categoryStats = await all(categoryQuery);
+  // 6. Revenue & Count by Test Category
+  //    Revenue is allocated proportionally from each booking's actual billed amount
+  //    based on how many tests of each category were in the booking.
+  //    This avoids using stale catalog prices which don't reflect discounts.
+  const categoryQuery = `
+      SELECT
+          t.category as category,
+          COUNT(r.test_id) as count,
+          -- Proportional revenue: booking's net amount * (1 / number of tests in that booking)
+          ROUND(SUM(
+              b.total_amount * 1.0
+              / (
+                  SELECT COUNT(*) FROM results r2 WHERE r2.booking_id = b.id
+              )
+          ), 0) as revenue
+      FROM results r
+      JOIN tests_catalog t ON r.test_id = t.id
+      JOIN bookings b ON r.booking_id = b.id
+      WHERE ${dateCond}
+      GROUP BY t.category
+      ORDER BY revenue DESC
+  `;
+  data.categoryStats = await all(categoryQuery);
   return data;
 }
 
@@ -558,8 +630,36 @@ async function updatePatientDetailsAndPin(id, updates) {
 
 async function deleteBooking(id) {
     try {
-        await run('DELETE FROM results WHERE booking_id = ?', [id]);
-        await run('DELETE FROM bookings WHERE id = ?', [id]);
+        const bookings = await all('SELECT patient_id FROM bookings WHERE id = ?', [id]);
+        if (bookings.length > 0) {
+            const pid = bookings[0].patient_id;
+            await run('DELETE FROM results WHERE booking_id = ?', [id]);
+            await run('DELETE FROM bookings WHERE id = ?', [id]);
+            return { success: true, patient_id: pid };
+        }
+        return { success: false, error: 'Booking not found' };
+    } catch(e) {
+        return { success: false, error: e.message };
+    }
+}
+
+async function deletePatient(patientId) {
+    try {
+        const bookings = await all('SELECT id FROM bookings WHERE patient_id = ?', [patientId]);
+        for (const b of bookings) {
+            await run('DELETE FROM results WHERE booking_id = ?', [b.id]);
+        }
+        await run('DELETE FROM bookings WHERE patient_id = ?', [patientId]);
+        await run('DELETE FROM patients WHERE id = ?', [patientId]);
+        return { success: true };
+    } catch(e) {
+        return { success: false, error: e.message };
+    }
+}
+
+async function deleteTest(id) {
+    try {
+        await run('DELETE FROM tests_catalog WHERE id = ?', [id]);
         return { success: true };
     } catch(e) {
         return { success: false, error: e.message };
@@ -729,17 +829,32 @@ async function getTestPopularityHeatmap(days = 90) {
 async function getMonthlySummary(year, month) {
   const pad = m => String(m).padStart(2,'0');
   const prefix = year + '-' + pad(month) + '%';
-  const [overview, topTests, referrals] = await Promise.all([
-    get(`SELECT COUNT(*) as visits, SUM(total_amount) as revenue, SUM(amount_paid) as collected,
-              SUM(total_amount - discount - COALESCE(amount_paid,0)) as outstanding
+  // Pass prefix so expense calculation matches the same month
+  const [overview, topTests, referrals, expensesData] = await Promise.all([
+    get(`SELECT COUNT(*) as visits,
+              COALESCE(SUM(total_amount), 0) as revenue,
+              COALESCE(SUM(CASE WHEN amount_paid > 0 THEN amount_paid ELSE total_amount END), 0) as collected,
+              COALESCE(SUM(
+                MAX(0,
+                  total_amount -
+                  CASE WHEN amount_paid > 0 THEN amount_paid ELSE total_amount END
+                )
+              ), 0) as outstanding
          FROM bookings WHERE date LIKE ?`, [prefix]),
     all(`SELECT t.name as test_name, COUNT(*) as count FROM results r
          JOIN bookings b ON r.booking_id = b.id
          JOIN tests_catalog t ON r.test_id = t.id
-         WHERE b.date LIKE ? GROUP BY t.id ORDER BY count DESC LIMIT 10`, [prefix]),
+         WHERE b.date LIKE ? GROUP BY t.id, t.name ORDER BY count DESC LIMIT 10`, [prefix]),
     all(`SELECT COALESCE(NULLIF(TRIM(referred_by),''),'Self') as dr, COUNT(*) as count
-         FROM bookings WHERE date LIKE ? GROUP BY dr ORDER BY count DESC LIMIT 5`, [prefix])
+         FROM bookings WHERE date LIKE ? GROUP BY dr ORDER BY count DESC LIMIT 5`, [prefix]),
+    get(`SELECT COALESCE(SUM(CAST(title AS REAL)), 0) as total_expenses FROM notes WHERE type = 'Expense' AND date_created LIKE ?`, [prefix])
   ]);
+  
+  if (overview) {
+      overview.expenses = Math.abs(expensesData ? expensesData.total_expenses : 0);
+      overview.net_profit = (overview.collected || 0) - overview.expenses;
+  }
+  
   return { overview, topTests, referrals, year, month };
 }
 
@@ -761,8 +876,50 @@ function _getDateRange(filterType) {
   return { startDate: startDate.toISOString().split('T')[0] };
 }
 
+// ── Notes & Tasks ─────────────────────────────────────────────
+async function getNotes(typeFilter = 'All') {
+  let query = 'SELECT * FROM notes';
+  let params = [];
+  if (typeFilter !== 'All') {
+    query += ' WHERE type = ?';
+    params.push(typeFilter);
+  }
+  query += ' ORDER BY is_done ASC, COALESCE(due_date, date_created) DESC';
+  return await all(query, params);
+}
+
+async function saveNote(note) {
+  const now = new Date().toISOString();
+  if (note.id) {
+    await run('UPDATE notes SET type=?, title=?, content=?, due_date=?, synced=0 WHERE id=?',
+      [note.type, note.title, note.content, note.due_date || null, note.id]);
+    return note.id;
+  } else {
+    const res = await run('INSERT INTO notes (type, title, content, is_done, date_created, due_date, synced) VALUES (?, ?, ?, 0, ?, ?, 0)',
+      [note.type, note.title, note.content, now, note.due_date || null]);
+    return res.id;
+  }
+}
+
+async function deleteNote(id) {
+  await run('DELETE FROM notes WHERE id = ?', [id]);
+  return { success: true };
+}
+
+async function toggleNoteDone(id, isDone) {
+  await run('UPDATE notes SET is_done = ?, synced=0 WHERE id = ?', [isDone ? 1 : 0, id]);
+  return { success: true };
+}
+
+async function getUnsyncedNotes() {
+    return await all("SELECT * FROM notes WHERE synced = 0");
+}
+async function setNoteSynced(id) {
+    return await run("UPDATE notes SET synced = 1 WHERE id = ?", [id]);
+}
+
 module.exports = {
-  importDatabaseFromFirebase, deleteBooking, revertBooking, getPatientById,
+  importDatabaseFromFirebase, deleteBooking, deletePatient, deleteTest, revertBooking, getPatientById,
   getBookingsByPatientId, updatePatientDetailsAndPin, getAnalyticsData,
   getPatientByPhone, getPatientHistory, getBookingReport,
   init, getTests, addTest, updateTest, saveBooking, getPendingBookings,
@@ -771,7 +928,8 @@ module.exports = {
   getInventory, saveInventoryItem, deleteInventoryItem, adjustInventoryStock, getLowStockItems,
   getDues, recordPayment,
   logSyncEvent, getSyncLog, clearSyncLog,
-  getReferralStats, getRepeatPatientRate, getTestPopularityHeatmap, getMonthlySummary
+  getReferralStats, getRepeatPatientRate, getTestPopularityHeatmap, getMonthlySummary,
+  getNotes, saveNote, deleteNote, toggleNoteDone, getUnsyncedNotes, setNoteSynced
 };
 
 

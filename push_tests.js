@@ -32,7 +32,7 @@ function pushTests() {
 
         try {
             console.log('Authenticating as admin to bypass security roles...');
-            await signInWithEmailAndPassword(auth, 'admin@lab.local', 'admin123456');
+            await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123');
 
             console.log(`Found ${rows.length} tests in desktop database.`);
             console.log('Uploading to Firebase collection "tests_catalog"...');

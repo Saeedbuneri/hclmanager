@@ -40,7 +40,10 @@ app.on('window-all-closed', function () {
 });
 
 ipcMain.handle('login', async (event, credentials) => {
-    if(credentials.username === 'admin' && credentials.password === 'admin123') {
+    let un = credentials.username.trim();
+    if (!un.includes('@')) un += '@lab.local';
+
+    if(un === 'hcl@lab.local' && credentials.password === 'hcl123') {
         return { success: true, role: 'admin' };
     }
     return { success: false, message: 'Invalid credentials.' };
@@ -128,7 +131,27 @@ ipcMain.handle('updateManualSyncDetails', async (event, patientId, updates) => {
 });
 
 ipcMain.handle('deleteBooking', async (event, id) => {
-  return await db.deleteBooking(id);
+  const result = await db.deleteBooking(id);
+  if (result.success && result.patient_id) {
+    await firebaseSync.deleteBookingFromCloud(result.patient_id, id);
+  }
+  return result;
+});
+
+ipcMain.handle('deletePatient', async (event, patientId) => {
+  const result = await db.deletePatient(patientId);
+  if (result.success) {
+    await firebaseSync.deletePatientFromCloud(patientId);
+  }
+  return result;
+});
+
+ipcMain.handle('deleteTest', async (event, id) => {
+  const result = await db.deleteTest(id);
+  if (result.success) {
+    await firebaseSync.deleteTestFromCloud(id);
+  }
+  return result;
 });
 
 ipcMain.handle('revertBooking', async (event, id) => {
@@ -159,6 +182,18 @@ ipcMain.handle('getReferralStats', async (ev, filter) => db.getReferralStats(fil
 ipcMain.handle('getRepeatPatientRate', async (ev, filter) => db.getRepeatPatientRate(filter));
 ipcMain.handle('getTestPopularityHeatmap', async (ev, days) => db.getTestPopularityHeatmap(days));
 ipcMain.handle('getMonthlySummary', async (ev, year, month) => db.getMonthlySummary(year, month));
+
+// ── Notes & Tasks ──────────────────────────────────────────────
+ipcMain.handle('getNotes', async (ev, typeFilter) => db.getNotes(typeFilter));
+ipcMain.handle('saveNote', async (ev, note) => db.saveNote(note));
+ipcMain.handle('deleteNote', async (ev, id) => {
+    const result = await db.deleteNote(id);
+    if (result.success) {
+      await firebaseSync.deleteNoteFromCloud(id);
+    }
+    return result;
+});
+ipcMain.handle('toggleNoteDone', async (ev, id, isDone) => db.toggleNoteDone(id, isDone));
 
 // ── Database Backup ────────────────────────────────────────────
 ipcMain.handle('backupDatabase', async () => {
