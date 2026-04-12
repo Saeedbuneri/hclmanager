@@ -153,21 +153,23 @@
         .signatures {
             display: flex;
             justify-content: flex-end;
-            margin-top: 40px;
-            padding-top: 20px;
+            margin-top: 30px;
+            padding-top: 16px;
+            page-break-inside: avoid;
         }
         .sign-block { text-align: center; width: 180px; }
         .sign-line { border-top: 1px solid #111827; margin-bottom: 8px; }
         .sign-title { font-size: 12px; color: #111827; font-weight: 600; }
 
         .report-footer {
-            margin-top: 30px;
+            margin-top: 16px;
             text-align: center;
             font-size: 10px;
             color: #6b7280;
             border-top: 1px solid #e5e7eb;
-            padding-top: 12px;
+            padding-top: 10px;
             line-height: 1.6;
+            page-break-inside: avoid;
         }
 
         /* ── Action buttons (screen only) ── */
@@ -202,16 +204,18 @@
             #actionBar { display: none !important; }
             .report-page {
                 box-shadow: none;
-                padding: 0;
+                padding: 20px 30px;
                 max-width: 100%;
                 margin: 0;
-                /* page-break-after already set inline */
             }
             .test-title { background: #eef2ff !important; border-left: 4px solid #1a237e !important; }
             th { background: #1a237e !important; color: #fff !important; }
             tr:nth-child(even) td { background-color: #f8fdff !important; }
             .patient-access-info { background: #f9fafb !important; }
-            @page { margin: 15mm; }
+            .signatures { page-break-inside: avoid !important; }
+            .report-footer { page-break-inside: avoid !important; }
+            .test-section { page-break-inside: avoid; }
+            @page { margin: 10mm 12mm; }
         }
     </style>
 </head>

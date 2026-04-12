@@ -466,6 +466,8 @@
                 `<div class="receipt-row"><span>• ${t}</span></div>`
             ).join('');
             document.getElementById('receiptOverlay').classList.add('show');
+            // Auto-trigger print after receipt renders
+            setTimeout(() => window.print(), 700);
         }
 
         function closReceiptAndReset() {
