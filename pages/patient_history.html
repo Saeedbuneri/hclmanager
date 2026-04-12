@@ -135,7 +135,7 @@
                                 <td><span class="status-badge ${isCompleted ? 'status-completed' : 'status-pending'}">${booking.status}</span></td>
                                 <td style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center; border-bottom: none;">
                                     <button onclick="window.api.openPrintWindow('db_id=${booking.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; ${!isCompleted ? 'opacity:0.5;' : ''}" ${!isCompleted ? 'disabled' : ''}>Report</button>
-                                    <button onclick="printReceipt('${booking.id}', '${(booking.patient_name || '').replace(/'/g, '\\'')}', '${booking.total_amount}', '${booking.discount || 0}', '${booking.pin || '123456'}')" style="background:#0ea5e9; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" title="Print Initial Receipt">Receipt</button>
+                                    <button onclick="printReceipt('${booking.id}', '${encodeURIComponent(booking.patient_name || '')}', '${booking.total_amount}', '${booking.discount || 0}', '${booking.pin || '123456'}')" style="background:#0ea5e9; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" title="Print Initial Receipt">Receipt</button>
                                 </td>
                             </tr>`;
                     });
@@ -278,8 +278,9 @@
             document.getElementById('patientVisitsModal').style.display = 'none';
         }
 
-        async function printReceipt(bookingId, pName, totalAmount, discount, pin) {
+        async function printReceipt(bookingId, encodedPName, totalAmount, discount, pin) {
             try {
+                const pName = decodeURIComponent(encodedPName);
                 const report = await window.api.getBookingReport(bookingId);
                 let tests = [];
                 if (report && report.results) {
