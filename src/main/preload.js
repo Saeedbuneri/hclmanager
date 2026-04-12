@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld(
       getBookingReport: (id) => ipcRenderer.invoke('getBookingReport', id),
       getAnalyticsData: (filterType) => ipcRenderer.invoke('getAnalyticsData', filterType),
       completeResult: (booking_id, test_id, data) => ipcRenderer.invoke('completeResult', booking_id, test_id, data),
-      savePdf: (filename, folderName) => ipcRenderer.invoke('savePdf', filename, folderName),
+      savePdf: (filename, folderName, options) => ipcRenderer.invoke('savePdf', filename, folderName, options),
       openPrintWindow: (params) => ipcRenderer.send('open-print-window', params),
       openReceiptWindow: (params) => ipcRenderer.send('open-receipt-window', params),
       getManualSyncDetails: (patientId) => ipcRenderer.invoke('getManualSyncDetails', patientId),
@@ -47,6 +47,12 @@ contextBridge.exposeInMainWorld(
       getNotes: (typeFilter) => ipcRenderer.invoke('getNotes', typeFilter),
       saveNote: (note) => ipcRenderer.invoke('saveNote', note),
       deleteNote: (id) => ipcRenderer.invoke('deleteNote', id),
-      toggleNoteDone: (id, isDone) => ipcRenderer.invoke('toggleNoteDone', id, isDone)
+      toggleNoteDone: (id, isDone) => ipcRenderer.invoke('toggleNoteDone', id, isDone),
+      // Patient Dues Ledger
+      getPatientDues: (patientId) => ipcRenderer.invoke('getPatientDues', patientId),
+      getPatientDuesSummary: () => ipcRenderer.invoke('getPatientDuesSummary'),
+      addPatientDue: (data) => ipcRenderer.invoke('addPatientDue', data),
+      payPatientDue: (due_id, amount) => ipcRenderer.invoke('payPatientDue', due_id, amount),
+      deletePatientDue: (due_id) => ipcRenderer.invoke('deletePatientDue', due_id)
   }
 );

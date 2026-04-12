@@ -17,11 +17,32 @@ const app = initializeApp(firebaseConfig);
 const fsDb = getFirestore(app);
 const auth = getAuth(app);
 
+const ADMIN_EMAIL = 'hcl@lab.local';
+const ADMIN_PASS  = 'hcl123';
+let _adminSignedIn = false;
+
+/**
+ * Ensures the Firebase Auth user is the admin account.
+ * All Firestore writes must go through this first.
+ */
+async function ensureAdminSignedIn() {
+    if (_adminSignedIn && auth.currentUser && auth.currentUser.email === ADMIN_EMAIL) return;
+    try {
+        await signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASS);
+    } catch(e) {
+        if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+            await createUserWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASS);
+        }
+    }
+    _adminSignedIn = true;
+}
+
 async function startSyncInterval() {
     setInterval(async () => {
         try {
             await syncBookingsToOnline();
             await syncNotesToOnline();
+            await syncDuesToOnline();
         } catch (e) {
             console.error("Firebase Sync Error: Offline or Credentials Missing.", e.message);
         }
@@ -42,23 +63,20 @@ async function syncBookingsToOnline() {
             const password = strPin.padStart(6, '0');
             const email = patientId.toLowerCase() + '@lab.local';
             
+            // Step 1: Create/verify patient's web portal login credentials
             try {
-                // Ensure patient can log in
                 await createUserWithEmailAndPassword(auth, email, password);
                 console.log(`Created Web Auth account for ${patientId}`);
             } catch (authErr) {
                 if (authErr.code === 'auth/email-already-in-use') {
-                    try {
-                        await signInWithEmailAndPassword(auth, email, password);
-                        console.log(`Signed in to Web Auth account for ${patientId}`);
-                    } catch (e) {
-                         console.log(`Failed to sign in: ${e.message}`);
-                    }
+                    console.log(`Web Auth account already exists for ${patientId}`);
                 } else {
                     console.log(`Auth notice for ${patientId}: ${authErr.message}`);
                 }
             }
 
+            // Step 2: ALWAYS sign back in as ADMIN before any Firestore write
+            await ensureAdminSignedIn();
 
 
             // Map data to expected schema
@@ -155,6 +173,7 @@ async function fetchManualSyncDetails(patientId) {
 async function updateManualSyncDetails(patientId, updates) {
     try {
         await dbLocal.updatePatientDetailsAndPin(patientId, updates);
+        await ensureAdminSignedIn(); // must be admin to write
         
         const docRef = doc(fsDb, "reports", patientId);
         const docSnap = await getDoc(docRef);
@@ -190,16 +209,7 @@ async function updateManualSyncDetails(patientId, updates) {
 async function forceFullSync() {
     try {
         console.log('Authenticating as admin to fetch records...');
-        const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = require('firebase/auth');
-        try {
-            await createUserWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123');
-        } catch (e) {
-            if (e.code === 'auth/email-already-in-use') {
-                try {
-                    await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123');
-                } catch(signInErr) {}
-            }
-        }
+        await ensureAdminSignedIn();
 
         console.log('Fetching all database records from Firebase to SQLite...');
         const colRef = collection(fsDb, "reports");
@@ -226,15 +236,7 @@ async function syncTestCatalog() {
     try {
         console.log('[Sync] Starting Test Catalog Sync to Firebase...');
         const tests = await dbLocal.getTests();
-        
-        try {
-            await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123');
-        } catch(e) {
-            const { createUserWithEmailAndPassword } = require('firebase/auth');
-            try {
-               await createUserWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123');
-            } catch(e2) {}
-        }
+        await ensureAdminSignedIn();
 
         let count = 0;
         for (let test of tests) {
@@ -264,13 +266,7 @@ async function syncNotesToOnline() {
         if (unsyncedNotes.length === 0) return;
 
         console.log(`[Sync] Found ${unsyncedNotes.length} unsynced notes/tasks. Syncing to Cloud...`);
-        
-        try {
-            await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123');
-        } catch(e) {
-            const { createUserWithEmailAndPassword } = require('firebase/auth');
-            try { await createUserWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123'); } catch(e2) {}
-        }
+        await ensureAdminSignedIn();
 
         let count = 0;
         for (let note of unsyncedNotes) {
@@ -296,8 +292,7 @@ async function syncNotesToOnline() {
 
 async function deleteBookingFromCloud(patientId, bookingId) {
     try {
-        const { signInWithEmailAndPassword } = require('firebase/auth');
-        try { await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123'); } catch(e) {}
+        await ensureAdminSignedIn();
         const docRef = doc(fsDb, "reports", patientId.toString());
         await updateDoc(docRef, {
             [`visits.${bookingId}`]: deleteField()
@@ -312,8 +307,7 @@ async function deleteBookingFromCloud(patientId, bookingId) {
 
 async function deletePatientFromCloud(patientId) {
     try {
-        const { signInWithEmailAndPassword } = require('firebase/auth');
-        try { await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123'); } catch(e) {}
+        await ensureAdminSignedIn();
         const docRef = doc(fsDb, "reports", patientId.toString());
         await deleteDoc(docRef);
         console.log(`Deleted patient ${patientId} from cloud`);
@@ -326,8 +320,7 @@ async function deletePatientFromCloud(patientId) {
 
 async function deleteTestFromCloud(testId) {
     try {
-        const { signInWithEmailAndPassword } = require('firebase/auth');
-        try { await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123'); } catch(e) {}
+        await ensureAdminSignedIn();
         const docRef = doc(fsDb, "tests_catalog", testId.toString());
         await deleteDoc(docRef);
         console.log(`Deleted test ${testId} from cloud`);
@@ -340,8 +333,7 @@ async function deleteTestFromCloud(testId) {
 
 async function deleteNoteFromCloud(noteId) {
     try {
-        const { signInWithEmailAndPassword } = require('firebase/auth');
-        try { await signInWithEmailAndPassword(auth, 'hcl@lab.local', 'hcl123'); } catch(e) {}
+        await ensureAdminSignedIn();
         const docRef = doc(fsDb, "notes", noteId.toString());
         await deleteDoc(docRef);
         console.log(`Deleted note ${noteId} from cloud`);
@@ -351,5 +343,32 @@ async function deleteNoteFromCloud(noteId) {
         return false;
     }
 }
+async function syncDuesToOnline() {
+    try {
+        const unsyncedDues = await dbLocal.getUnsyncedDues() || [];
+        if (unsyncedDues.length === 0) return;
+        await ensureAdminSignedIn();
+        let count = 0;
+        for (let due of unsyncedDues) {
+            const dueRef = doc(fsDb, 'patient_dues', due.id.toString());
+            const payload = {
+                patient_id: due.patient_id,
+                patient_name: due.patient_name || '',
+                description: due.description,
+                amount: due.amount,
+                amount_paid: due.amount_paid || 0,
+                date_added: due.date_added,
+                date_paid: due.date_paid || null,
+                status: due.status || 'pending'
+            };
+            await setDoc(dueRef, payload, { merge: true });
+            await dbLocal.setDueSynced(due.id);
+            count++;
+        }
+        if (count > 0) console.log('[Sync] Synced ' + count + ' dues to Cloud');
+    } catch(err) {
+        console.error('[Sync] Dues Sync Failed: ', err);
+    }
+}
 
-module.exports = { startSyncInterval, syncBookingsToOnline, syncNotesToOnline, fetchManualSyncDetails, updateManualSyncDetails, forceFullSync, syncTestCatalog, deleteBookingFromCloud, deletePatientFromCloud, deleteTestFromCloud, deleteNoteFromCloud };
+module.exports = { startSyncInterval, syncBookingsToOnline, syncNotesToOnline, syncDuesToOnline, fetchManualSyncDetails, updateManualSyncDetails, forceFullSync, syncTestCatalog, deleteBookingFromCloud, deletePatientFromCloud, deleteTestFromCloud, deleteNoteFromCloud };

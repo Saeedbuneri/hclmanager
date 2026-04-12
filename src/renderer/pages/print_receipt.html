@@ -44,12 +44,40 @@
         .btn-print:hover { background: #5a6fe0; }
         
         .footer { text-align: center; margin-top: 20px; font-size: 11px; color: #999; }
-        
+
+        /* ── PRINT STYLES ─────────────────────────────────────── */
+        @page {
+            size: 80mm auto;   /* thermal receipt width; height auto */
+            margin: 6mm;
+        }
         @media print {
-            .no-print { display: none; }
-            body { background: white; padding: 0; display: block; }
-            .container { box-shadow: none; width: 100%; padding: 0; margin: 0; }
-            .online-portal { border: 1px solid #ddd; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .no-print { display: none !important; }
+
+            html, body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                display: block !important;
+                min-height: unset !important;
+            }
+
+            .container {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* Keep background colours on info boxes */
+            .patient-info { background: #f8f9fa !important; -webkit-print-color-adjust: exact; }
+            .total { background: #f8f9fa !important; -webkit-print-color-adjust: exact; }
+            .online-portal { background: #eef2f7 !important; border: 1px solid #ddd !important; -webkit-print-color-adjust: exact; }
+
+            /* Prevent page-break inside the receipt card */
+            .container { page-break-inside: avoid; }
         }
     </style>
 </head>
@@ -136,14 +164,28 @@
                 // Auto-save PDF receipt on load
                 const urlParams2 = new URLSearchParams(window.location.search);
                 if (window.api && window.api.savePdf) {
-                    window.api.savePdf('Receipt_' + (urlParams2.get('id') || Date.now()), 'HCL_Slips');
+                    saveReceiptPdf();
                 }
             }, 800);
         }
 
         function saveReceiptPdf() {
             const urlParams = new URLSearchParams(window.location.search);
-            window.api.savePdf('Receipt_' + (urlParams.get('id') || Date.now()), 'HCL_Slips');
+            const filename = 'Receipt_' + (urlParams.get('id') || Date.now());
+            
+            // Calculate height off the container.
+            const container = document.querySelector('.container');
+            const hPx = container.scrollHeight || 600;
+            // width: 80mm = 80000 microns. 
+            // height: approx (1px * 264.583 microns/px) + 30,000 microns margin
+            const hMicrons = Math.round(hPx * 264.583) + 30000;
+
+            const printOpt = {
+                marginsType: 1, // no margins
+                pageSize: { width: 80000, height: hMicrons },
+                printBackground: true
+            };
+            window.api.savePdf(filename, 'HCL_Slips', printOpt);
         }
     </script>
 </body>

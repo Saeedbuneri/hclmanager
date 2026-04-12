@@ -13,15 +13,21 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Reports: admins see all; patients see only their own record
+    // Reports: admins check all; patients see ONLY their own record
     match /reports/{patientId} {
-      allow read, write: if isAdmin() ||
+      allow write: if isAdmin();
+      allow read: if isAdmin() ||
         (request.auth != null && 
          request.auth.token.email == patientId.lower() + '@lab.local');
     }
 
     // ✅ Notes/Tasks/Expenses: only admins (desktop app only)
     match /notes/{noteId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ✅ Patient Dues Ledger: only admins
+    match /patient_dues/{dueId} {
       allow read, write: if isAdmin();
     }
 

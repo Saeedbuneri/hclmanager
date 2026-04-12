@@ -92,6 +92,10 @@
                 <div class="quick-tile-icon">📊</div>
                 <div><div class="quick-tile-label">Analytics</div><div class="quick-tile-sub">Revenue & trends</div></div>
             </a>
+            <a href="dues.html" class="quick-tile" style="border-color:var(--danger);">
+                <div class="quick-tile-icon">💰</div>
+                <div><div class="quick-tile-label" style="color:var(--danger);">Dues Ledger</div><div class="quick-tile-sub">Track outstanding balances</div></div>
+            </a>
         </div>
 
         <!-- Stats -->
@@ -116,6 +120,11 @@
                 <p class="stat-val" style="color:var(--success);" id="todayRevenue">—</p>
                 <div class="stat-sub">Net collected</div>
             </div>
+            <div class="stat-card" style="border-color:var(--danger);" onclick="window.location='dues.html'" title="Click to manage dues" style="cursor:pointer;">
+                <h3 style="color:var(--danger);">💰 Dues Outstanding</h3>
+                <p class="stat-val" style="color:var(--danger);" id="duesBalance">—</p>
+                <div class="stat-sub">From <span id="duesPatientCount">0</span> patient(s)</div>
+            </div>
         </div>
 
         <!-- Today's Queue -->
@@ -138,9 +147,10 @@
 
         async function loadDashboardData() {
             try {
-                const [pendingBookings, allBookings] = await Promise.all([
+                const [pendingBookings, allBookings, duesSummary] = await Promise.all([
                     window.api.getPendingBookings(),
-                    window.api.getPatientHistory('')
+                    window.api.getPatientHistory(''),
+                    window.api.getPatientDuesSummary().catch(() => [])
                 ]);
 
                 const todayStr = new Date().toLocaleDateString();
@@ -152,6 +162,11 @@
                 document.getElementById('pendingTests').textContent    = pendingBookings.length;
                 document.getElementById('completedTests').textContent  = completedToday.length;
                 document.getElementById('todayRevenue').textContent    = 'Rs ' + todayRev.toLocaleString();
+
+                // Dues summary
+                const totalDuesBalance = duesSummary.reduce((s, d) => s + (d.balance || 0), 0);
+                document.getElementById('duesBalance').textContent = 'Rs ' + totalDuesBalance.toLocaleString();
+                document.getElementById('duesPatientCount').textContent = duesSummary.length;
 
                 const queueEl = document.getElementById('recentQueue');
                 if (!todayBookings.length) {

@@ -46,12 +46,40 @@
         .btn-print:hover { background: #5a6fe0; }
         
         .footer { text-align: center; margin-top: 20px; font-size: 11px; color: #999; }
-        
+
+        /* ── PRINT STYLES ─────────────────────────────────────── */
+        @page {
+            size: 80mm auto;   /* thermal receipt width; height auto */
+            margin: 6mm;
+        }
         @media print {
-            .no-print { display: none; }
-            body { background: white; padding: 0; display: block; }
-            .container { box-shadow: none; width: 100%; padding: 0; margin: 0; }
-            .online-portal { border: 1px solid #ddd; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .no-print { display: none !important; }
+
+            html, body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                display: block !important;
+                min-height: unset !important;
+            }
+
+            .container {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* Keep background colours on info boxes */
+            .patient-info { background: #f8f9fa !important; -webkit-print-color-adjust: exact; }
+            .total { background: #f8f9fa !important; -webkit-print-color-adjust: exact; }
+            .online-portal { background: #eef2f7 !important; border: 1px solid #ddd !important; -webkit-print-color-adjust: exact; }
+
+            /* Prevent page-break inside the receipt card */
+            .container { page-break-inside: avoid; }
         }
     </style>
 </head>
@@ -147,14 +175,30 @@
                 window.api.savePdf(filename.replace('.pdf', ''), 'HCL_Slips');
             } else {
                 const element = document.querySelector('.container');
+                const noPrintElements = document.querySelectorAll('.no-print');
+                
+                noPrintElements.forEach(el => el.style.display = 'none');
+                element.style.boxShadow = 'none';
+
+                // The container is 380px wide. We are targeting an 80mm PDF width.
+                // To maintain aspect ratio and fit on exactly 1 page:
+                const ratio = 80 / 380; 
+                const elemHeight = element.scrollHeight || 600;
+                // Add a tiny buffer (1mm) to prevent extreme edge rounding splits
+                const pdfHeightMM = (elemHeight * ratio) + 1;
+
                 const opt = {
                     margin: 0,
                     filename: filename,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true },
-                    jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
+                    image: { type: 'jpeg', quality: 1.0 },
+                    html2canvas: { scale: 3, useCORS: true, windowWidth: 380 },
+                    jsPDF: { unit: 'mm', format: [80, pdfHeightMM], orientation: 'portrait' }
                 };
-                html2pdf().set(opt).from(element).save();
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    noPrintElements.forEach(el => el.style.display = 'flex');
+                    element.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.2)';
+                });
             }
         }
     </script>

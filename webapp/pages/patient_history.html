@@ -135,7 +135,7 @@
                                 <td><span class="status-badge ${isCompleted ? 'status-completed' : 'status-pending'}">${booking.status}</span></td>
                                 <td style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center; border-bottom: none;">
                                     <button onclick="window.api.openPrintWindow('db_id=${booking.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; ${!isCompleted ? 'opacity:0.5;' : ''}" ${!isCompleted ? 'disabled' : ''}>Report</button>
-                                    <button onclick="printReceipt('${booking.id}', '${(booking.patient_name || '').replace(/'/g, '\\'')}', '${booking.total_amount}', '${booking.discount || 0}', '${booking.pin || '123456'}')" style="background:#0ea5e9; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" title="Print Initial Receipt">Receipt</button>
+                                    <button onclick="printReceipt('${booking.id}', '${encodeURIComponent(booking.patient_name || '')}', '${booking.total_amount}', '${booking.discount || 0}', '${booking.pin || '123456'}', '${booking.patient_id}')" style="background:#0ea5e9; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" title="Print Initial Receipt">Receipt</button>
                                 </td>
                             </tr>`;
                     });
@@ -149,27 +149,23 @@
                     }
 
                     let patientMap = new Map();
-                    if (!searchTerm) {
-                        records.forEach(p => patientMap.set(p.patient_id, p));
-                    } else {
-                        records.forEach(b => {
-                            if (!patientMap.has(b.patient_id)) {
-                                patientMap.set(b.patient_id, {
-                                    patient_id: b.patient_id,
-                                    patient_name: b.patient_name,
-                                    contact: b.contact,
-                                    pin: b.pin,
-                                    last_visit: b.date,
-                                    total_visits: 1
-                                });
-                            } else {
-                                let p = patientMap.get(b.patient_id);
-                                p.total_visits++;
-                                if (b.date > p.last_visit) p.last_visit = b.date;
-                                if (!p.pin && b.pin) p.pin = b.pin;
-                            }
-                        });
-                    }
+                    records.forEach(b => {
+                        if (!patientMap.has(b.patient_id)) {
+                            patientMap.set(b.patient_id, {
+                                patient_id: b.patient_id,
+                                patient_name: b.patient_name,
+                                contact: b.contact,
+                                pin: b.pin,
+                                last_visit: b.date,
+                                total_visits: 1
+                            });
+                        } else {
+                            let p = patientMap.get(b.patient_id);
+                            p.total_visits++;
+                            if (b.date > p.last_visit) p.last_visit = b.date;
+                            if (!p.pin && b.pin) p.pin = b.pin;
+                        }
+                    });
 
                     let patientsAgg = Array.from(patientMap.values()).sort((a,b) => new Date(b.last_visit) - new Date(a.last_visit));
 
@@ -278,8 +274,9 @@
             document.getElementById('patientVisitsModal').style.display = 'none';
         }
 
-        async function printReceipt(bookingId, pName, totalAmount, discount, pin) {
+        async function printReceipt(bookingId, encodedPName, totalAmount, discount, pin, patientId) {
             try {
+                const pName = decodeURIComponent(encodedPName);
                 const report = await window.api.getBookingReport(bookingId);
                 let tests = [];
                 if (report && report.results) {
@@ -287,7 +284,7 @@
                 }
                 const subtotal = Number(totalAmount) + Number(discount);
                 const params = new URLSearchParams({
-                    id: bookingId,
+                    id: patientId || bookingId,
                     pin: pin,
                     name: pName,
                     subtotal: subtotal,

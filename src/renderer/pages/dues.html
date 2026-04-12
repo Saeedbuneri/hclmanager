@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>HCL – Patient Dues Ledger</title>
+    <link rel="stylesheet" href="../assets/style.css">
+    <script src="../assets/shared.js"></script>
+    <script src="../assets/sidebar.js"></script>
+    <style>
+        .dues-page-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; }
+        .dues-page-header h1 { font-size:22px; font-weight:800; color:var(--text); }
+        .dues-page-header p { font-size:13px; color:var(--text-muted); margin-top:3px; }
+
+        .dues-toolbar { display:flex; gap:10px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+        .dues-search { flex:1; min-width:200px; padding:9px 14px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); font-size:14px; }
+        .dues-search:focus { outline:none; border-color:var(--primary); }
+
+        .dues-summary-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px; }
+        .dues-summary-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 20px; box-shadow:var(--shadow); }
+        .dues-summary-card .label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); margin-bottom:6px; }
+        .dues-summary-card .value { font-size:26px; font-weight:800; }
+
+        .dues-table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); overflow:hidden; }
+        .dues-table-wrap table { width:100%; border-collapse:collapse; font-size:13px; }
+        .dues-table-wrap thead tr { background:var(--surface-2); border-bottom:1px solid var(--border); }
+        .dues-table-wrap th { padding:12px 15px; text-align:left; font-weight:700; color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+        .dues-table-wrap td { padding:13px 15px; border-bottom:1px solid var(--border); vertical-align:middle; }
+        .dues-table-wrap tbody tr:last-child td { border-bottom:none; }
+        .dues-table-wrap tbody tr:hover { background:var(--surface-2); }
+
+        .status-pill { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+        .status-pending { background:#fef9c3; color:#d97706; }
+        .status-partial { background:#e0f2fe; color:#0369a1; }
+        .status-paid { background:#dcfce7; color:#059669; }
+
+        .progress-bar-sm { height:6px; background:var(--surface-2); border-radius:3px; overflow:hidden; margin-top:5px; }
+        .progress-fill-sm { height:100%; border-radius:3px; background:var(--primary); transition:width .3s; }
+
+        /* Modal */
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center; }
+        .modal-overlay.open { display:flex; }
+        .modal-box { background:var(--surface); border-radius:16px; padding:28px; width:420px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+        .modal-title { font-size:18px; font-weight:800; color:var(--text); margin-bottom:20px; }
+        .form-group { margin-bottom:14px; }
+        .form-group label { display:block; font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:5px; text-transform:uppercase; }
+        .form-group input, .form-group textarea, .form-group select { width:100%; padding:9px 13px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-size:14px; }
+        .form-group input:focus, .form-group textarea:focus { outline:none; border-color:var(--primary); }
+        .modal-actions { display:flex; gap:10px; margin-top:20px; }
+        .btn-cancel { background:var(--surface-2); border:1px solid var(--border); color:var(--text); padding:9px 18px; border-radius:8px; cursor:pointer; font-weight:600; }
+        .btn-save { background:var(--primary); color:white; border:none; padding:9px 22px; border-radius:8px; cursor:pointer; font-weight:700; }
+        .btn-save:hover { background:var(--primary-dark); }
+
+        /* Patient search dropdown in modal */
+        .patient-dropdown { border:1px solid var(--border); border-radius:8px; background:var(--surface); max-height:160px; overflow-y:auto; position:absolute; width:100%; z-index:10; box-shadow:var(--shadow-md); }
+        .patient-dropdown-item { padding:9px 13px; cursor:pointer; font-size:13px; }
+        .patient-dropdown-item:hover { background:var(--surface-2); }
+        .patient-search-wrap { position:relative; }
+        .action-btn { padding:5px 11px; border-radius:6px; border:none; cursor:pointer; font-weight:600; font-size:12px; margin:0 2px; }
+        .btn-pay { background:#10b981; color:white; }
+        .btn-delete { background:#ef4444; color:white; }
+        .btn-ledger { background:#8b5cf6; color:white; }
+    </style>
+</head>
+<body>
+    <div id="sidebar-container"></div>
+    <script>initSidebar('dues.html')</script>
+
+    <div class="main-content">
+        <div class="dues-page-header">
+            <div>
+                <h1>💰 Patient Dues Ledger</h1>
+                <p>Track and manage outstanding balances for patients.</p>
+            </div>
+            <button class="btn btn-primary" onclick="openAddModal()">+ Add Due</button>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="dues-summary-grid">
+            <div class="dues-summary-card">
+                <div class="label">Total Outstanding</div>
+                <div class="value" id="totalOutstanding" style="color:var(--danger)">Rs 0</div>
+            </div>
+            <div class="dues-summary-card">
+                <div class="label">Patients with Dues</div>
+                <div class="value" id="totalPatients" style="color:var(--secondary)">0</div>
+            </div>
+            <div class="dues-summary-card">
+                <div class="label">Total Collected (vs Owed)</div>
+                <div class="value" id="totalCollected" style="color:var(--success)">Rs 0</div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="dues-toolbar">
+            <input id="duesSearch" class="dues-search" type="text" placeholder="🔍 Search by patient name or ID..." oninput="filterTable()">
+            <select id="statusFilter" onchange="filterTable()" style="padding:9px 13px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); font-size:14px;">
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="loadDues()">↻ Refresh</button>
+        </div>
+
+        <!-- Table -->
+        <div class="dues-table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Patient</th>
+                        <th>Description</th>
+                        <th>Date Added</th>
+                        <th>Amount</th>
+                        <th>Paid</th>
+                        <th>Balance</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="duesTableBody">
+                    <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Due Modal -->
+    <div class="modal-overlay" id="addDueModal">
+        <div class="modal-box">
+            <div class="modal-title">➕ Add New Due</div>
+            <div class="form-group patient-search-wrap">
+                <label>Patient</label>
+                <input id="patientSearchInput" type="text" placeholder="Search by name or ID..." autocomplete="off" oninput="searchPatients(this.value)">
+                <div class="patient-dropdown" id="patientDropdown" style="display:none;"></div>
+            </div>
+            <input type="hidden" id="selectedPatientId">
+            <input type="hidden" id="selectedPatientName">
+            <div class="form-group">
+                <label>Description</label>
+                <input id="dueDescription" type="text" placeholder="e.g. CBC Test pending payment">
+            </div>
+            <div class="form-group">
+                <label>Amount (Rs)</label>
+                <input id="dueAmount" type="number" min="1" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>Date</label>
+                <input id="dueDate" type="date">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+                <button class="btn-save" onclick="saveDue()">Save Due</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pay Due Modal -->
+    <div class="modal-overlay" id="payDueModal">
+        <div class="modal-box">
+            <div class="modal-title">✅ Record Payment</div>
+            <input type="hidden" id="payDueId">
+            <div id="payDueInfo" style="background:var(--surface-2);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;"></div>
+            <div class="form-group">
+                <label>Amount Receiving Now (Rs)</label>
+                <input id="payAmount" type="number" min="1" placeholder="0">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closePayModal()">Cancel</button>
+                <button class="btn-save" onclick="submitPayment()">Record Payment</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allDues = [];
+        let allPatients = [];
+
+        async function loadDues() {
+            const tbody = document.getElementById('duesTableBody');
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">Loading...</td></tr>';
+            try {
+                allDues = await window.api.getPatientDues(null);
+                renderTable(allDues);
+                updateSummary(allDues);
+            } catch(e) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--danger);padding:20px;">Error loading dues.</td></tr>';
+            }
+        }
+
+        function updateSummary(dues) {
+            const active = dues.filter(d => d.status !== 'paid');
+            const totalOwed = active.reduce((s, d) => s + (d.amount || 0), 0);
+            const totalPaid = active.reduce((s, d) => s + (d.amount_paid || 0), 0);
+            const balance = totalOwed - totalPaid;
+            const uniquePatients = new Set(active.map(d => d.patient_id)).size;
+            document.getElementById('totalOutstanding').textContent = 'Rs ' + balance.toLocaleString();
+            document.getElementById('totalPatients').textContent = uniquePatients;
+            document.getElementById('totalCollected').textContent = 'Rs ' + totalPaid.toLocaleString();
+        }
+
+        function renderTable(dues) {
+            const tbody = document.getElementById('duesTableBody');
+            if (!dues.length) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No dues found. 🎉</td></tr>';
+                return;
+            }
+            tbody.innerHTML = dues.map(d => {
+                const balance = (d.amount || 0) - (d.amount_paid || 0);
+                const pct = d.amount > 0 ? Math.round((d.amount_paid / d.amount) * 100) : 0;
+                const statusClass = { paid:'status-paid', partial:'status-partial', pending:'status-pending' }[d.status] || 'status-pending';
+                const dateStr = d.date_added ? new Date(d.date_added).toLocaleDateString('en-GB') : 'N/A';
+                return `<tr>
+                    <td>
+                        <strong>${d.patient_name || '—'}</strong><br>
+                        <span style="font-size:11px;color:var(--text-muted);">${d.patient_id}</span>
+                    </td>
+                    <td>${d.description}</td>
+                    <td>${dateStr}</td>
+                    <td>Rs ${(d.amount||0).toLocaleString()}</td>
+                    <td>
+                        <span style="color:var(--success);font-weight:600;">Rs ${(d.amount_paid||0).toLocaleString()}</span>
+                        <div class="progress-bar-sm"><div class="progress-fill-sm" style="width:${pct}%"></div></div>
+                    </td>
+                    <td><strong style="color:var(--danger);">Rs ${balance.toLocaleString()}</strong></td>
+                    <td><span class="status-pill ${statusClass}">${d.status}</span></td>
+                    <td>
+                        ${d.status !== 'paid' ? `<button class="action-btn btn-pay" onclick="openPayModal(${d.id}, '${d.patient_name}', ${d.amount}, ${d.amount_paid||0})">Pay</button>` : ''}
+                        <button class="action-btn btn-delete" onclick="deleteDue(${d.id})">✕</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function filterTable() {
+            const search = document.getElementById('duesSearch').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+            const filtered = allDues.filter(d => {
+                const matchSearch = !search ||
+                    (d.patient_name || '').toLowerCase().includes(search) ||
+                    (d.patient_id || '').toLowerCase().includes(search) ||
+                    (d.description || '').toLowerCase().includes(search);
+                const matchStatus = !status || d.status === status;
+                return matchSearch && matchStatus;
+            });
+            renderTable(filtered);
+        }
+
+        // ── Add Due Modal ─────────────────────────────────────────
+        function openAddModal() {
+            document.getElementById('patientSearchInput').value = '';
+            document.getElementById('selectedPatientId').value = '';
+            document.getElementById('selectedPatientName').value = '';
+            document.getElementById('dueDescription').value = '';
+            document.getElementById('dueAmount').value = '';
+            document.getElementById('dueDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('patientDropdown').style.display = 'none';
+            document.getElementById('addDueModal').classList.add('open');
+        }
+        function closeAddModal() { document.getElementById('addDueModal').classList.remove('open'); }
+
+        async function searchPatients(term) {
+            if (!term || term.length < 2) {
+                document.getElementById('patientDropdown').style.display = 'none';
+                return;
+            }
+            try {
+                const results = await window.api.getPatientHistory(term);
+                const dd = document.getElementById('patientDropdown');
+                if (!results || results.length === 0) { dd.style.display = 'none'; return; }
+                dd.innerHTML = results.slice(0, 10).map(p => `
+                    <div class="patient-dropdown-item" onclick="selectPatient('${p.patient_id}', '${(p.patient_name || '').replace(/'/g, "\\'")}')">
+                        <strong>${p.patient_name}</strong> <span style="color:var(--text-muted);font-size:11px;">${p.patient_id}</span>
+                    </div>
+                `).join('');
+                dd.style.display = 'block';
+            } catch(e) {}
+        }
+
+        function selectPatient(id, name) {
+            document.getElementById('selectedPatientId').value = id;
+            document.getElementById('selectedPatientName').value = name;
+            document.getElementById('patientSearchInput').value = `${name} (${id})`;
+            document.getElementById('patientDropdown').style.display = 'none';
+        }
+
+        async function saveDue() {
+            const patientId = document.getElementById('selectedPatientId').value;
+            const patientName = document.getElementById('selectedPatientName').value;
+            const description = document.getElementById('dueDescription').value.trim();
+            const amount = parseFloat(document.getElementById('dueAmount').value);
+            const dateAdded = document.getElementById('dueDate').value;
+
+            if (!patientId) { alert('Please select a patient.'); return; }
+            if (!description) { alert('Please enter a description.'); return; }
+            if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
+
+            const result = await window.api.addPatientDue({ patient_id: patientId, patient_name: patientName, description, amount, date_added: dateAdded });
+            if (result.success) {
+                closeAddModal();
+                loadDues();
+            } else {
+                alert('Failed to save due.');
+            }
+        }
+
+        // ── Pay Due Modal ─────────────────────────────────────────
+        function openPayModal(dueId, patientName, amount, amountPaid) {
+            document.getElementById('payDueId').value = dueId;
+            document.getElementById('payAmount').value = amount - amountPaid;
+            document.getElementById('payDueInfo').innerHTML = `
+                <strong>${patientName}</strong><br>
+                Total Due: <strong>Rs ${amount.toLocaleString()}</strong><br>
+                Already Paid: <strong style="color:var(--success);">Rs ${amountPaid.toLocaleString()}</strong><br>
+                Outstanding: <strong style="color:var(--danger);">Rs ${(amount - amountPaid).toLocaleString()}</strong>
+            `;
+            document.getElementById('payDueModal').classList.add('open');
+        }
+        function closePayModal() { document.getElementById('payDueModal').classList.remove('open'); }
+
+        async function submitPayment() {
+            const dueId = parseInt(document.getElementById('payDueId').value);
+            const amount = parseFloat(document.getElementById('payAmount').value);
+            if (!amount || amount <= 0) { alert('Enter a valid amount.'); return; }
+            const result = await window.api.payPatientDue(dueId, amount);
+            if (result.success) {
+                closePayModal();
+                loadDues();
+            } else {
+                alert('Failed to record payment.');
+            }
+        }
+
+        async function deleteDue(id) {
+            if (!confirm('Remove this due entry?')) return;
+            await window.api.deletePatientDue(id);
+            loadDues();
+        }
+
+        // Close dropdown if clicking outside
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.patient-search-wrap')) {
+                document.getElementById('patientDropdown').style.display = 'none';
+            }
+        });
+
+        loadDues();
+    </script>
+</body>
+</html>

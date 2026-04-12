@@ -101,6 +101,22 @@ function init() {
         synced INTEGER DEFAULT 0
       )
     `);
+
+    // Manual patient dues ledger (separate from bookings)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS patient_dues (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        patient_id TEXT NOT NULL,
+        patient_name TEXT,
+        description TEXT NOT NULL,
+        amount REAL NOT NULL,
+        amount_paid REAL DEFAULT 0,
+        date_added TEXT NOT NULL,
+        date_paid TEXT,
+        status TEXT DEFAULT 'pending',
+        synced INTEGER DEFAULT 0
+      )
+    `);
   });
   
   // Seed initial test data if catalog is empty
@@ -404,7 +420,7 @@ async function getPatientHistory(searchTerm = "") {
   if (searchTerm === "ALL_PATIENTS") {
     let query = `
       SELECT p.id as patient_id, p.name as patient_name, p.phone as contact,
-             MAX(b.date) as last_visit, COUNT(b.id) as total_visits
+             MAX(b.date) as last_visit, COUNT(b.id) as total_visits, MAX(b.pin) as pin
       FROM patients p
       LEFT JOIN bookings b ON p.id = b.patient_id
       GROUP BY p.id
@@ -762,8 +778,71 @@ async function getLowStockItems() {
   return await all('SELECT * FROM inventory WHERE current_stock <= min_stock ORDER BY current_stock ASC');
 }
 
-// ── Dues / Payments ───────────────────────────────────────────
+// ── Patient Dues Ledger ────────────────────────────────────────────────────────
+async function getPatientDues(patientId) {
+  if (patientId) {
+    return await all(`SELECT * FROM patient_dues WHERE patient_id = ? ORDER BY date_added DESC`, [patientId]);
+  }
+  return await all(`SELECT * FROM patient_dues ORDER BY date_added DESC`);
+}
+
+async function getPatientDuesSummary(patientId) {
+  // For the dashboard: all patients with pending dues
+  const query = `
+    SELECT pd.patient_id, pd.patient_name,
+           SUM(pd.amount) as total_owed,
+           SUM(pd.amount_paid) as total_paid,
+           SUM(pd.amount - pd.amount_paid) as balance,
+           MAX(pd.date_added) as last_date,
+           COUNT(pd.id) as due_count
+    FROM patient_dues pd
+    WHERE pd.status != 'paid'
+    GROUP BY pd.patient_id
+    HAVING balance > 0
+    ORDER BY balance DESC
+  `;
+  return await all(query, []);
+}
+
+async function addPatientDue(data) {
+  const now = new Date().toISOString();
+  const res = await run(
+    `INSERT INTO patient_dues (patient_id, patient_name, description, amount, amount_paid, date_added, status, synced)
+     VALUES (?, ?, ?, ?, 0, ?, 'pending', 0)`,
+    [data.patient_id, data.patient_name, data.description, parseFloat(data.amount), data.date_added || now]
+  );
+  return { success: true, id: res.lastID };
+}
+
+async function payPatientDue(due_id, amount_to_pay) {
+  const due = await get(`SELECT * FROM patient_dues WHERE id = ?`, [due_id]);
+  if (!due) return { success: false, error: 'Due not found' };
+  const newPaid = parseFloat(due.amount_paid || 0) + parseFloat(amount_to_pay);
+  const newStatus = newPaid >= due.amount ? 'paid' : 'partial';
+  const datePaid = newStatus === 'paid' ? new Date().toISOString() : null;
+  await run(
+    `UPDATE patient_dues SET amount_paid = ?, status = ?, date_paid = ?, synced = 0 WHERE id = ?`,
+    [newPaid, newStatus, datePaid, due_id]
+  );
+  return { success: true };
+}
+
+async function deletePatientDue(due_id) {
+  await run(`DELETE FROM patient_dues WHERE id = ?`, [due_id]);
+  return { success: true };
+}
+
+async function getUnsyncedDues() {
+  return await all(`SELECT * FROM patient_dues WHERE synced = 0`);
+}
+
+async function setDueSynced(due_id) {
+  await run(`UPDATE patient_dues SET synced = 1 WHERE id = ?`, [due_id]);
+}
+
+// ── LEGACY getDues (from bookings) — kept for backward compat ─────────────────
 async function getDues() {
+  // No longer used in analytics UI — kept for safety
   return await all(`
     SELECT b.id, b.date, b.total_amount, b.amount_paid, b.discount, b.status,
            (b.total_amount - b.discount - b.amount_paid) as balance,
@@ -927,6 +1006,8 @@ module.exports = {
   // New
   getInventory, saveInventoryItem, deleteInventoryItem, adjustInventoryStock, getLowStockItems,
   getDues, recordPayment,
+  getPatientDues, getPatientDuesSummary, addPatientDue, payPatientDue, deletePatientDue,
+  getUnsyncedDues, setDueSynced,
   logSyncEvent, getSyncLog, clearSyncLog,
   getReferralStats, getRepeatPatientRate, getTestPopularityHeatmap, getMonthlySummary,
   getNotes, saveNote, deleteNote, toggleNoteDone, getUnsyncedNotes, setNoteSynced

@@ -71,10 +71,11 @@ ipcMain.handle('getPendingBookings', async () => { return db.getPendingBookings(
 ipcMain.handle('getBookingReport', async (event, id) => { return db.getBookingReport(id); });
 ipcMain.handle('getAnalyticsData', async (event, filter) => { return db.getAnalyticsData(filter); });
 ipcMain.handle('completeResult', async (event, id, test_id, data) => { return db.completeResult(id, test_id, data); });
-ipcMain.handle('savePdf', async (event, filename, folderName = 'HCL_Reports') => {
+ipcMain.handle('savePdf', async (event, filename, folderName = 'HCL_Reports', options = null) => {
     try {
         const win = BrowserWindow.fromWebContents(event.sender);
-        const data = await win.webContents.printToPDF({});
+        const pdfOpt = options ? Object.assign({ printBackground: true }, options) : { pageSize: 'A4', printBackground: true };
+        const data = await win.webContents.printToPDF(pdfOpt);
         const fs = require('fs');
         const path = require('path');
         const dir = path.join(require('os').homedir(), 'Desktop', folderName);
@@ -169,9 +170,16 @@ ipcMain.handle('deleteInventoryItem', async (ev, id) => db.deleteInventoryItem(i
 ipcMain.handle('adjustInventoryStock', async (ev, id, qty) => db.adjustInventoryStock(id, qty));
 ipcMain.handle('getLowStockItems', async () => db.getLowStockItems());
 
-// ── Dues / Payments ────────────────────────────────────────────
+// ── Dues / Payments (legacy from bookings) ────────────────────
 ipcMain.handle('getDues', async () => db.getDues());
 ipcMain.handle('recordPayment', async (ev, booking_id, amount) => db.recordPayment(booking_id, amount));
+
+// ── Patient Dues Ledger ─────────────────────────────────────────
+ipcMain.handle('getPatientDues', async (ev, patientId) => db.getPatientDues(patientId || null));
+ipcMain.handle('getPatientDuesSummary', async () => db.getPatientDuesSummary());
+ipcMain.handle('addPatientDue', async (ev, data) => db.addPatientDue(data));
+ipcMain.handle('payPatientDue', async (ev, due_id, amount) => db.payPatientDue(due_id, amount));
+ipcMain.handle('deletePatientDue', async (ev, due_id) => db.deletePatientDue(due_id));
 
 // ── Sync Log ───────────────────────────────────────────────────
 ipcMain.handle('getSyncLog', async () => db.getSyncLog());

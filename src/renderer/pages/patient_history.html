@@ -134,7 +134,7 @@
                                 <td><span class="status-badge ${isCompleted ? 'status-completed' : 'status-pending'}">${booking.status}</span></td>
                                 <td style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center; border-bottom: none;">
                                     <button onclick="window.api.openPrintWindow('db_id=${booking.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" title="Print Lab Results Report">Report</button>
-                                    <button onclick="printReceipt('${booking.id}', '${(booking.patient_name || '').replace(/'/g, '\\'')}', '${booking.total_amount}', '${booking.discount || 0}', '${booking.pin || '123456'}')" style="background:#0ea5e9; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" title="Print Initial Receipt">Receipt</button>
+                                    <button onclick="printReceipt('${booking.id}', '${encodeURIComponent(booking.patient_name || '')}', '${booking.total_amount}', '${booking.discount || 0}', '${booking.pin || '123456'}', '${booking.patient_id}')" style="background:#0ea5e9; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" title="Print Initial Receipt">Receipt</button>
                                     <button onclick="revertBookingLocal('${booking.id}')" style="background:#f59e0b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; ${!isCompleted ? 'opacity:0.5;' : ''}" ${!isCompleted ? 'disabled' : ''}>Edit</button>
                                     <button onclick="deleteBookingLocal('${booking.id}')" style="background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">Delete</button>
                                 </td>
@@ -190,7 +190,10 @@
                                 <td><span style="background:#e2e8f0; padding:2px 8px; border-radius:10px; font-weight:bold;">${p.total_visits}</span></td>
                                 <td>
                                     <button onclick="openPatientVisits('${p.patient_id}', '${p.patient_name}')" style="background:#8b5cf6; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Visits/Tests</button>
-                                    <button onclick="openEditPatientModal('${p.patient_id}', '${p.patient_name ? p.patient_name.replace(/'/g, "\\'") : ''}')" style="background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-left:5px;">Edit Patient</button>                                      <button onclick="deletePatientLocal('${p.patient_id}', '${p.patient_name}')" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-left:5px;">Delete</button>                                </td>
+                                    <button onclick="openEditPatientModal('${p.patient_id}', '${p.patient_name ? p.patient_name.replace(/'/g, "\\'") : ''}')" style="background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-left:5px;">Edit Patient</button>
+                                    <button onclick="openPatientLedger('${p.patient_id}', '${(p.patient_name||'').replace(/'/g, "\\'")}')" style="background:#0ea5e9; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-left:5px;">💰 Ledger</button>
+                                    <button onclick="deletePatientLocal('${p.patient_id}', '${p.patient_name}')" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-left:5px;">Delete</button>
+                                </td>
                             </tr>`
                     });
                 }
@@ -277,8 +280,9 @@
             document.getElementById('patientVisitsModal').style.display = 'none';
         }
 
-        async function printReceipt(bookingId, pName, totalAmount, discount, pin) {
+        async function printReceipt(bookingId, encodedPName, totalAmount, discount, pin, patientId) {
             try {
+                const pName = decodeURIComponent(encodedPName);
                 // Fetch tests for this specific booking to populate receipt
                 const report = await window.api.getBookingReport(bookingId);
                 let tests = [];
@@ -287,7 +291,7 @@
                 }
                 const subtotal = Number(totalAmount) + Number(discount);
                 const params = new URLSearchParams({
-                    id: bookingId,
+                    id: patientId || bookingId,
                     pin: pin,
                     name: pName,
                     subtotal: subtotal,
@@ -412,5 +416,116 @@
         </div>
     </div>
     
-</body>
-</html>
+
+    <!-- Patient Ledger Modal -->
+    <div id="patientLedgerModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:var(--surface); border-radius:16px; padding:28px; width:620px; max-width:95vw; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="font-size:18px; font-weight:800;" id="ledgerModalTitle">Patient Ledger</h2>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="openAddDueFromHistory()" style="background:var(--primary); color:white; border:none; padding:7px 14px; border-radius:7px; cursor:pointer; font-weight:600;">+ Add Due</button>
+                    <button onclick="closeLedgerModal()" style="background:#ef4444; color:white; border:none; padding:7px 14px; border-radius:7px; cursor:pointer;">Close</button>
+                </div>
+            </div>
+            <div id="ledgerSummaryBar" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;"></div>
+            <div id="ledgerContent">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Add Due from History Modal -->
+    <div id="addDueFromHistoryModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2100; align-items:center; justify-content:center;">
+        <div style="background:var(--surface); border-radius:14px; padding:24px; width:360px; max-width:95vw; box-shadow:0 20px 50px rgba(0,0,0,0.25);">
+            <h3 style="margin-bottom:16px; font-weight:800;">Add Due</h3>
+            <input type="hidden" id="adfh_patient_id">
+            <input type="hidden" id="adfh_patient_name">
+            <div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:4px;">Patient</label>
+                <input id="adfh_patient_display" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);" readonly></div>
+            <div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:4px;">Description</label>
+                <input id="adfh_desc" type="text" placeholder="e.g. Lab fee pending" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);"></div>
+            <div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:4px;">Amount (Rs)</label>
+                <input id="adfh_amount" type="number" min="1" placeholder="0" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);"></div>
+            <div style="display:flex;gap:10px;margin-top:16px;">
+                <button onclick="closeAddDueFromHistoryModal()" style="flex:1;padding:9px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-weight:600;">Cancel</button>
+                <button onclick="saveAddDueFromHistory()" style="flex:1;padding:9px;background:var(--primary);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:700;">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var _currentLedgerPatientId = null;
+        var _currentLedgerPatientName = null;
+
+        async function openPatientLedger(patientId, patientName) {
+            _currentLedgerPatientId = patientId;
+            _currentLedgerPatientName = patientName;
+            document.getElementById('ledgerModalTitle').textContent = 'Dues Ledger - ' + patientName;
+            document.getElementById('patientLedgerModal').style.display = 'flex';
+            await refreshLedger();
+        }
+        function closeLedgerModal() { document.getElementById('patientLedgerModal').style.display = 'none'; }
+
+        async function refreshLedger() {
+            document.getElementById('ledgerContent').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">Loading...</div>';
+            try {
+                var dues = await window.api.getPatientDues(_currentLedgerPatientId);
+                var totalOwed = dues.reduce(function(s,d){ return s+(d.amount||0); }, 0);
+                var totalPaid = dues.reduce(function(s,d){ return s+(d.amount_paid||0); }, 0);
+                var balance = totalOwed - totalPaid;
+                document.getElementById('ledgerSummaryBar').innerHTML =
+                    '<div style="background:var(--surface-2);padding:12px;border-radius:8px;text-align:center;"><div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:4px;">TOTAL OWED</div><div style="font-size:20px;font-weight:800;">Rs ' + totalOwed.toLocaleString() + '</div></div>' +
+                    '<div style="background:#dcfce7;padding:12px;border-radius:8px;text-align:center;"><div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:4px;">PAID SO FAR</div><div style="font-size:20px;font-weight:800;color:#059669;">Rs ' + totalPaid.toLocaleString() + '</div></div>' +
+                    '<div style="background:' + (balance>0?'#fee2e2':'#dcfce7') + ';padding:12px;border-radius:8px;text-align:center;"><div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:4px;">OUTSTANDING</div><div style="font-size:20px;font-weight:800;color:' + (balance>0?'#dc2626':'#059669') + ';">Rs ' + balance.toLocaleString() + '</div></div>';
+                if (!dues.length) { document.getElementById('ledgerContent').innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">No dues recorded. All clear!</div>'; return; }
+                var rows = dues.map(function(d) {
+                    var bal = (d.amount||0) - (d.amount_paid||0);
+                    var sc = d.status==='paid'?'#059669':d.status==='partial'?'#0369a1':'#d97706';
+                    var bc = d.status==='paid'?'#dcfce7':d.status==='partial'?'#e0f2fe':'#fef9c3';
+                    var dateStr = d.date_added ? new Date(d.date_added).toLocaleDateString('en-GB') : '';
+                    return '<tr style="border-bottom:1px solid var(--border);">' +
+                        '<td style="padding:10px 12px;">' + dateStr + '</td>' +
+                        '<td style="padding:10px 12px;">' + d.description + '</td>' +
+                        '<td style="padding:10px 12px;">Rs ' + (d.amount||0).toLocaleString() + '</td>' +
+                        '<td style="padding:10px 12px;color:#059669;font-weight:600;">Rs ' + (d.amount_paid||0).toLocaleString() + '</td>' +
+                        '<td style="padding:10px 12px;color:#dc2626;font-weight:700;">Rs ' + bal.toLocaleString() + '</td>' +
+                        '<td style="padding:10px 12px;"><span style="background:' + bc + ';color:' + sc + ';padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;">' + d.status + '</span></td>' +
+                        '<td style="padding:10px 12px;">' +
+                            (d.status!=='paid' ? '<button onclick="payLedgerDue(' + d.id + ',' + d.amount + ',' + (d.amount_paid||0) + ')" style="background:#10b981;color:white;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;">Pay</button>' : '') +
+                            '<button onclick="deleteLedgerDue(' + d.id + ')" style="background:#ef4444;color:white;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;margin-left:4px;">X</button>' +
+                        '</td></tr>';
+                }).join('');
+                document.getElementById('ledgerContent').innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--surface-2);border-bottom:1px solid var(--border);"><th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);">DATE</th><th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);">DESCRIPTION</th><th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);">OWED</th><th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);">PAID</th><th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);">BALANCE</th><th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);">STATUS</th><th style="padding:10px 12px;text-align:left;font-size:11px;color:var(--text-muted);">ACTION</th></tr></thead><tbody>' + rows + '</tbody></table>';
+            } catch(e) { document.getElementById('ledgerContent').innerHTML = '<div style="color:var(--danger);padding:16px;">' + e.message + '</div>'; }
+        }
+
+        async function payLedgerDue(dueId, amount, amountPaid) {
+            var remaining = amount - amountPaid;
+            var input = prompt('Outstanding: Rs ' + remaining + '\n\nEnter amount received:', remaining);
+            if (input === null || isNaN(parseFloat(input))) return;
+            var res = await window.api.payPatientDue(dueId, parseFloat(input));
+            if (res.success) { await refreshLedger(); } else { alert('Failed: ' + (res.error||'')); }
+        }
+        async function deleteLedgerDue(dueId) {
+            if (!confirm('Remove this due entry?')) return;
+            await window.api.deletePatientDue(dueId);
+            await refreshLedger();
+        }
+        function openAddDueFromHistory() {
+            document.getElementById('adfh_patient_id').value = _currentLedgerPatientId;
+            document.getElementById('adfh_patient_name').value = _currentLedgerPatientName;
+            document.getElementById('adfh_patient_display').value = _currentLedgerPatientName + ' (' + _currentLedgerPatientId + ')';
+            document.getElementById('adfh_desc').value = '';
+            document.getElementById('adfh_amount').value = '';
+            document.getElementById('addDueFromHistoryModal').style.display = 'flex';
+        }
+        function closeAddDueFromHistoryModal() { document.getElementById('addDueFromHistoryModal').style.display = 'none'; }
+        async function saveAddDueFromHistory() {
+            var patientId = document.getElementById('adfh_patient_id').value;
+            var patientName = document.getElementById('adfh_patient_name').value;
+            var description = document.getElementById('adfh_desc').value.trim();
+            var amount = parseFloat(document.getElementById('adfh_amount').value);
+            if (!description) { alert('Enter a description.'); return; }
+            if (!amount || amount <= 0) { alert('Enter a valid amount.'); return; }
+            var res = await window.api.addPatientDue({ patient_id: patientId, patient_name: patientName, description: description, amount: amount, date_added: new Date().toISOString() });
+            if (res.success) { closeAddDueFromHistoryModal(); await refreshLedger(); } else { alert('Failed to add due.'); }
+        }
+    </script>
