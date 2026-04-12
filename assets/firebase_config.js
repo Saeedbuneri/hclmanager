@@ -178,7 +178,7 @@ window.api = {
       await ensureAuth();
       const cart = typeof cartStr === 'string' ? JSON.parse(cartStr) : cartStr;
       const testNames = cart.map(c => c.name);
-      const newPatientId = generateId().toString();
+      const newPatientId = patientData.id || ('HCL' + Math.floor(100000 + Math.random() * 900000));
       const newBookingId = generateId().toString();
       
       let unitsAndRanges = {};
@@ -196,7 +196,7 @@ window.api = {
           }
       });
 
-      const strPin = patientData.phone ? patientData.phone.toString().slice(-6).padStart(6, '0') : "123456";
+      const strPin = patientData.pin ? patientData.pin.toString().padStart(6, '0') : "123456";
 
       const visitData = {
           receipt_id: newBookingId,
