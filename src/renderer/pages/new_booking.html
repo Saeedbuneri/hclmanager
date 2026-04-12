@@ -7,84 +7,246 @@
     <script src="../assets/shared.js"></script>
     <script src="../assets/sidebar.js"></script>
     <style>
-        .booking-container { display: flex; gap: 30px; }
-        .form-section, .cart-section { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); flex: 1; }
-        .form-row { margin-bottom: 15px; }
-        .form-row label { display: block; margin-bottom: 5px; color: #64748b; font-size: 14px; }
-        .form-row input, .form-row select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        .test-list { max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 5px; }
-        .test-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; cursor: pointer; }
-        .test-item:hover { background: #f8fafc; }
-        .cart-total { font-size: 24px; font-weight: bold; color: #0ea5e9; text-align: right; margin: 20px 0; }
-        .btn-print { width: 100%; padding: 15px; background: #10b981; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; font-weight: bold; }
-        .btn-print:hover { background: #059669; }
+        /* ── Two-column desktop layout ──────────────────────── */
+        .booking-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.6fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* ── Section Cards ──────────────────────────────────── */
+        .section-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px;
+            box-shadow: var(--shadow);
+        }
+        .section-title {
+            font-size: 12px; font-weight: 800;
+            color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 16px;
+            padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        }
+
+        /* ── Form Fields ─────────────────────────────────────── */
+        .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 13px; }
+        .field label { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+        .field input, .field select {
+            padding: 10px 13px; border: 1.5px solid var(--border);
+            border-radius: 8px; font-size: 14px; font-family: var(--font);
+            background: var(--surface); color: var(--text);
+            transition: border-color 0.2s; min-height: 40px;
+        }
+        .field input:focus, .field select:focus {
+            outline: none; border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(14,165,233,0.1);
+        }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        /* ── Patient Search ─────────────────────────────────── */
+        .search-wrap { position: relative; }
+        .search-wrap input { border: 2px solid var(--primary); }
+        #patientSuggestions {
+            display: none; position: absolute; top: 100%; left: 0; right: 0;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; z-index: 100; max-height: 200px; overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12); margin-top: 2px;
+        }
+        .sug-item {
+            padding: 10px 13px; cursor: pointer; font-size: 13px;
+            border-bottom: 1px solid var(--border); transition: background 0.15s;
+        }
+        .sug-item:hover { background: var(--primary-light); }
+        .sug-item:last-child { border-bottom: none; }
+
+        /* ── Right Column Sections ────────────────────────── */
+        .right-col { display: flex; flex-direction: column; gap: 16px; }
+
+        /* ── Test Browser ───────────────────────────────────── */
+        .test-browser {
+            display: grid; grid-template-columns: 110px 1fr; gap: 0;
+            border: 1px solid var(--border); border-radius: 8px;
+            overflow: hidden; height: 260px;
+        }
+        .cat-panel { background: var(--surface-2); overflow-y: auto; border-right: 1px solid var(--border); }
+        .cat-item {
+            padding: 11px 10px; font-size: 12px; font-weight: 600;
+            cursor: pointer; border-bottom: 1px solid var(--border);
+            color: var(--text-muted); line-height: 1.3; transition: background 0.15s;
+        }
+        .cat-item.active { background: var(--primary); color: white; }
+        .cat-item:hover:not(.active) { background: var(--primary-light); color: var(--primary); }
+        .test-panel { overflow-y: auto; }
+        .test-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 9px 12px; font-size: 13px;
+            border-bottom: 1px solid var(--border); cursor: pointer;
+            transition: background 0.15s; gap: 8px;
+        }
+        .test-row:hover { background: var(--primary-light); }
+        .test-row.selected { background: #ecfdf5; border-left: 3px solid #10b981; }
+        .test-row-name { font-weight: 600; color: var(--text); flex: 1; }
+        .test-row-price { font-weight: 700; color: var(--primary); font-size: 12px; }
+        .add-tag {
+            font-size: 11px; font-weight: 800; padding: 2px 8px;
+            border-radius: 20px; white-space: nowrap;
+        }
+        .add-tag.in-cart { background: #dcfce7; color: #059669; }
+        .add-tag.not-in-cart { background: var(--primary-light); color: var(--primary); }
+
+        /* ── Cart ──────────────────────────────────────────── */
+        .cart-empty { text-align: center; color: var(--text-muted); padding: 16px; font-size: 13px; }
+        .cart-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 4px; border-bottom: 1px solid var(--border); gap: 8px;
+        }
+        .cart-item:last-child { border-bottom: none; }
+        .cart-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+        .cart-price { font-size: 13px; font-weight: 700; color: var(--primary); }
+        .cart-remove {
+            border: none; background: #fee2e2; color: #ef4444;
+            border-radius: 6px; width: 24px; height: 24px; font-size: 14px;
+            cursor: pointer; flex-shrink: 0; display: flex; align-items: center;
+            justify-content: center; font-weight: 800;
+        }
+        .cart-totals { border-top: 2px dashed var(--border); padding-top: 12px; margin-top: 4px; }
+        .total-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; align-items: center; }
+        .total-row.final { font-size: 18px; font-weight: 800; color: var(--text); }
+        .discount-input {
+            width: 90px; padding: 5px 10px; border: 1px solid var(--border);
+            border-radius: 6px; font-size: 14px; background: var(--surface);
+            color: var(--text); min-height: 34px;
+        }
+        .confirm-table { width: 100%; font-size: 13px; margin-bottom: 12px; }
+        .confirm-table td { padding: 4px 0; }
+        .confirm-table td:first-child { color: var(--text-muted); width: 38%; }
+        .confirm-table td:last-child { font-weight: 700; }
     </style>
 </head>
 <body>
-<div id="sidebar-container"></div>
-    
+    <div id="sidebar-container"></div>
+    <script>initSidebar('new_booking.html')</script>
+
     <div class="main-content">
         <header>
-            <h1>New Patient Booking</h1>
-            <p>Register a patient and print thermal receipt</p>
+            <h1>New Booking</h1>
+            <p>Register a patient and assign tests</p>
         </header>
-        
-        <div class="booking-container">
-            <div class="form-section">
-                <h3>Patient Details</h3><br><div class='form-row' style='position: relative; margin-bottom: 20px;'><label style='color:#0ea5e9; font-weight:bold;'>Search Existing Patient (Name, ID or Phone)</label><input type='text' id='patientSearchInput' placeholder='Type name, ID or phone number...' oninput='searchPatientList(this.value)' autocomplete='off' style='border: 2px solid #0ea5e9;'><div id='patientSuggestions' style='display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #ddd; z-index:1000; max-height: 200px; overflow-y:auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius:4px;'></div></div>
-                <div class="form-row">
-                    <label>Patient Name</label>
-                    <input type="text" id="pName" placeholder="e.g. John Doe">
-                </div>
-                <div style="display: flex; gap: 15px;">
-                    <div class="form-row" style="flex: 1;">
-                        <label>Age</label>
-                        <input type="number" id="pAge" placeholder="e.g. 45">
+
+        <div class="booking-grid">
+            <!-- ── LEFT: Patient Details ── -->
+            <div class="section-card">
+                <div class="section-title">👤 Patient Details</div>
+
+                <div class="field">
+                    <label>Search Existing Patient</label>
+                    <div class="search-wrap">
+                        <input type="text" id="patientSearchInput" placeholder="Name, ID or Phone..." oninput="searchPatientList(this.value)" autocomplete="off">
+                        <div id="patientSuggestions"></div>
                     </div>
-                    <div class="form-row" style="flex: 1;">
+                </div>
+
+                <div class="field">
+                    <label>Patient Name *</label>
+                    <input type="text" id="pName" placeholder="e.g. Ali Khan">
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label>Age</label>
+                        <input type="number" id="pAge" placeholder="45" min="1" max="120">
+                    </div>
+                    <div class="field">
                         <label>Gender</label>
                         <select id="pGender">
-                            <option>Male</option><option>Female</option><option>Other</option>
+                            <option>Male</option>
+                            <option>Female</option>
+                            <option>Other</option>
                         </select>
                     </div>
                 </div>
-                <div class="form-row">
-                    <label>Phone Number (for WhatsApp Result)</label>
-                    <input type="text" id="pPhone" placeholder="0313 ..." onchange="fetchPatientData(this.value)" oninput="if(this.value.length >= 10) fetchPatientData(this.value)">
+
+                <div class="field">
+                    <label>Phone Number</label>
+                    <input type="tel" id="pPhone" placeholder="0313 1234567" onchange="fetchPatientData(this.value)" oninput="if(this.value.length >= 10) fetchPatientData(this.value)">
                 </div>
-                <div class="form-row">
-                    <label>Referred By (Doctor / Self)</label>
-                    <input type="text" id="pReferredBy" placeholder="e.g. Dr. Ahmed, Self, Walk-in" list="referralList">
+
+                <div class="field">
+                    <label>Referred By</label>
+                    <input type="text" id="pReferredBy" placeholder="Dr. Ahmed / Self / Walk-in" list="referralList">
                     <datalist id="referralList"></datalist>
                 </div>
             </div>
 
-            <div class="cart-section" style="flex: 2;">
-                <h3>Select Tests</h3><br>
-                
-                <div style="display: flex; gap: 15px; height: 250px; margin-bottom: 20px;">
-                    <div style="flex: 1; border: 1px solid #eee; border-radius: 5px; overflow-y: auto;">
-                        <ul id="categoryList" style="list-style: none; padding: 0; margin: 0; font-size: 14px;">
-                            <!-- Categories inject here -->
-                        </ul>
-                    </div>
-                    <div id="testList" style="flex: 1.5; border: 1px solid #eee; border-radius: 5px; overflow-y: auto; padding: 10px;">
-                        <div style="text-align:center; color:#94a3b8; margin-top:20px;">Select a category</div>
+            <!-- ── RIGHT: Tests + Cart ── -->
+            <div class="right-col">
+                <!-- Test Browser -->
+                <div class="section-card">
+                    <div class="section-title">🧪 Select Tests</div>
+                    <div class="test-browser">
+                        <div class="cat-panel" id="categoryList"></div>
+                        <div class="test-panel" id="testList">
+                            <div style="text-align:center; color:var(--text-muted); padding:30px 10px; font-size:13px;">
+                                ← Pick a category
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div style="margin-top: 20px;">
-                    <h4>Selected Cart:</h4>
-                    <ul id="cartItems" style="list-style: none; padding: 10px 0; border-bottom: 2px dashed #eee;"></ul>
-                    <div class="cart-total">
-                        <div style="font-size: 16px; color: #64748b; margin-bottom: 5px;">Subtotal: Rs. <span id="subTotal">0</span></div>
-                        <div style="font-size: 16px; color: #64748b; margin-bottom: 5px; display: flex; justify-content: flex-end; align-items: center; gap: 10px;">
-                            Discount: Rs. <input type="number" id="discount" value="0" min="0" style="width: 80px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateCartUI()" onkeyup="updateCartUI()">
+                <!-- Cart + Totals -->
+                <div class="section-card">
+                    <div class="section-title">🛒 Order Summary</div>
+                    <div id="cartItems"></div>
+                    <div class="cart-totals">
+                        <div class="total-row">
+                            <span>Subtotal</span>
+                            <span>Rs. <span id="subTotal">0</span></span>
                         </div>
-                        <div>Total to Pay: Rs. <span id="totalAmount">0</span></div>
+                        <div class="total-row">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span>Discount</span>
+                                <input type="number" id="discount" class="discount-input" value="0" min="0" placeholder="0" onchange="updateCartUI()" oninput="updateCartUI()">
+                            </div>
+                            <span style="font-weight:700; color:var(--danger);">− Rs. <span id="discountDisplay">0</span></span>
+                        </div>
+                        <div class="total-row final">
+                            <span>Total to Pay</span>
+                            <span style="color:var(--primary);">Rs. <span id="totalAmount">0</span></span>
+                        </div>
                     </div>
-                    <button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="bookAndPrint()">📋 Review &amp; Book</button>
+                    <button class="btn btn-success btn-lg" style="width:100%; margin-top:12px;" onclick="bookAndPrint()">
+                        ✅ Review & Confirm Booking
+                    </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Confirm Modal ── -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal" style="max-width:500px;">
+            <div class="modal-header">
+                <h3>✅ Confirm Booking</h3>
+                <button class="modal-close" onclick="document.getElementById('confirmModal').classList.remove('open')">×</button>
+            </div>
+            <table class="confirm-table">
+                <tr><td>Patient</td><td id="confName">—</td></tr>
+                <tr><td>Age / Gender</td><td><span id="confAge">—</span> / <span id="confGender">—</span></td></tr>
+                <tr><td>Phone</td><td id="confPhone">—</td></tr>
+                <tr><td>Referred By</td><td id="confRef">—</td></tr>
+            </table>
+            <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Tests Selected</div>
+            <div id="confItems" style="font-size:13px;margin-bottom:12px;"></div>
+            <div style="background:var(--primary-light); border-radius:8px; padding:12px; font-size:13px;">
+                <div class="total-row"><span>Subtotal</span><span id="confSubtotal">—</span></div>
+                <div class="total-row"><span>Discount</span><span id="confDiscount">—</span></div>
+                <div class="total-row final" style="font-size:15px;margin-top:6px;"><span>Total</span><span id="confTotal" style="color:var(--primary);">—</span></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="document.getElementById('confirmModal').classList.remove('open')">← Edit</button>
+                <button class="btn btn-success btn-lg" onclick="confirmAndSave()">✔ Confirm & Save</button>
             </div>
         </div>
     </div>
@@ -92,71 +254,61 @@
     <script>
         let cart = [];
         let matchedPatientId = null;
-        let matchedPatientPin = null; // Stores existing PIN for returning patients
+        let matchedPatientPin = null;
         let allTests = [];
         let categories = [];
+        let currentCategory = '★ Popular';
 
         async function initTests() {
             allTests = await window.api.getTests();
-            categories = ['Top Suggested', ...new Set(allTests.map(t => t.category || 'General'))];
+            if (!allTests) allTests = [];
+            const cats = [...new Set(allTests.map(t => t.category || 'General'))];
+            categories = ['★ Popular', ...cats];
             renderCategories();
-            
-            if(categories.length > 0) {
-                renderTestsForCategory(categories[0]);
-            }
+            renderTestsForCategory(currentCategory);
         }
 
         function renderCategories() {
-            const list = document.getElementById('categoryList');
-            list.innerHTML = '';
-            categories.forEach(cat => {
-                const li = document.createElement('li');
-                li.innerText = cat;
-                li.style.padding = '10px';
-                li.style.borderBottom = '1px solid #eee';
-                li.style.cursor = 'pointer';
-                li.style.color = '#334155';
-                li.onclick = () => {
-                    [...list.children].forEach(c => c.style.background = 'white');
-                    li.style.background = '#f1f5f9';
+            const el = document.getElementById('categoryList');
+            el.innerHTML = '';
+            categories.forEach((cat, i) => {
+                const div = document.createElement('div');
+                div.className = 'cat-item' + (i === 0 ? ' active' : '');
+                div.textContent = cat;
+                div.onclick = () => {
+                    document.querySelectorAll('.cat-item').forEach(c => c.classList.remove('active'));
+                    div.classList.add('active');
+                    currentCategory = cat;
                     renderTestsForCategory(cat);
                 };
-                list.appendChild(li);
+                el.appendChild(div);
             });
-            if(list.firstChild) list.firstChild.style.background = '#f1f5f9';
         }
-
-        let currentCategory = 'Top Suggested';
 
         function renderTestsForCategory(cat) {
-            currentCategory = cat;
-            const list = document.getElementById('testList');
-            list.innerHTML = '';
-            const filtered = cat === 'Top Suggested' ? allTests.slice(0, 3) : allTests.filter(t => (t.category || 'General') === cat);
-            
-            if(filtered.length === 0) list.innerHTML = '<div style="text-align:center; color:#94a3b8; margin-top:20px;">No tests</div>';
-            
+            const el = document.getElementById('testList');
+            el.innerHTML = '';
+            const filtered = cat === '★ Popular' ? allTests.slice(0, 6) : allTests.filter(t => (t.category || 'General') === cat);
+            if (!filtered.length) {
+                el.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:12px;">No tests in this category</div>';
+                return;
+            }
             filtered.forEach(test => {
-                const isSelected = cart.some(item => item.id === test.id);
+                const inCart = cart.some(c => c.id === test.id);
                 const div = document.createElement('div');
-                div.className = 'test-item';
-                if (isSelected) {
-                    div.style.background = '#ecfdf5'; // light green
-                    div.style.borderLeft = '4px solid #10b981';
-                }
-                div.onclick = () => toggleCart(test.id, test.name, test.price);
-                div.innerHTML = `<span>${test.name} ${isSelected ? '✅' : ''}</span><span style="font-weight:bold; color:#0ea5e9;">Rs. ${test.price}</span>`;
-                list.appendChild(div);
+                div.className = 'test-row' + (inCart ? ' selected' : '');
+                div.innerHTML = `<span class="test-row-name">${test.name}</span><span class="test-row-price">Rs.${test.price}</span><span class="add-tag ${inCart ? 'in-cart' : 'not-in-cart'}">${inCart ? '✓' : '+'}</span>`;
+                div.onclick = () => {
+                    toggleCart(test.id, test.name, test.price, test.parameters);
+                };
+                el.appendChild(div);
             });
         }
 
-        function toggleCart(id, name, price) {
-            const index = cart.findIndex(item => item.id === id);
-            if (index > -1) {
-                cart.splice(index, 1);
-            } else {
-                cart.push({id, name, price});
-            }
+        function toggleCart(id, name, price, parameters) {
+            const idx = cart.findIndex(c => c.id === id);
+            if (idx > -1) cart.splice(idx, 1);
+            else cart.push({ id, name, price, parameters });
             updateCartUI();
         }
 
@@ -166,227 +318,153 @@
         }
 
         function updateCartUI() {
-            renderTestsForCategory(currentCategory); // refresh highlights
-            const ul = document.getElementById('cartItems');
-            ul.innerHTML = '';
+            renderTestsForCategory(currentCategory);
+            const el = document.getElementById('cartItems');
             let subTotal = 0;
-            cart.forEach((item, index) => {
-                subTotal += item.price;
-                ul.innerHTML += `<li style="display:flex; justify-content:space-between; margin-bottom:5px; color:#475569; align-items:center;">
-                    <span>
-                        <button onclick="removeFromCart(${index})" style="margin-right: 10px; background: #ef4444; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 10px;" title="Remove this test">X</button>
-                        ${item.name}
-                    </span>
-                    <span>Rs. ${item.price}</span>
-                </li>`;
-            });
-            
-            let discount = parseFloat(document.getElementById('discount').value) || 0;
-            let finalTotal = subTotal - discount;
-            if (finalTotal < 0) finalTotal = 0;
-
-            document.getElementById('subTotal').innerText = subTotal;
-            document.getElementById('totalAmount').innerText = finalTotal;
+            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            if (cart.length === 0) {
+                el.innerHTML = '<div class="cart-empty">No tests added yet. Select from above ↑</div>';
+            } else {
+                el.innerHTML = '';
+                cart.forEach((item, i) => {
+                    subTotal += parseFloat(item.price) || 0;
+                    const row = document.createElement('div');
+                    row.className = 'cart-item';
+                    row.innerHTML = `<span class="cart-name">${item.name}</span><span class="cart-price">Rs.${item.price}</span><button class="cart-remove" onclick="removeFromCart(${i})">×</button>`;
+                    el.appendChild(row);
+                });
+            }
+            const finalTotal = Math.max(0, subTotal - discount);
+            document.getElementById('subTotal').textContent = subTotal;
+            document.getElementById('discountDisplay').textContent = discount;
+            document.getElementById('totalAmount').textContent = finalTotal;
         }
 
         async function bookAndPrint() {
             const name = document.getElementById('pName').value.trim();
-            if (cart.length === 0) { showToast('Please add at least one test.', 'warning'); return; }
             if (!name) { showToast('Patient name is required.', 'warning'); return; }
-            
-            let subTotal = cart.reduce((sum, item) => sum + item.price, 0);
-            let discount = parseFloat(document.getElementById('discount').value) || 0;
-            let finalTotal = Math.max(0, subTotal - discount);
+            if (cart.length === 0) { showToast('Please add at least one test.', 'warning'); return; }
+            const subTotal = cart.reduce((s, t) => s + (parseFloat(t.price) || 0), 0);
+            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            const finalTotal = Math.max(0, subTotal - discount);
             const referredBy = document.getElementById('pReferredBy').value.trim();
 
-            // Build confirmation modal content
-            const confItems = document.getElementById('confItems');
-            confItems.innerHTML = cart.map(t =>
-                '<div class="confirm-item"><span>' + t.name + '</span><span>Rs. ' + t.price + '</span></div>'
+            document.getElementById('confName').textContent = name;
+            document.getElementById('confAge').textContent = document.getElementById('pAge').value || '—';
+            document.getElementById('confGender').textContent = document.getElementById('pGender').value;
+            document.getElementById('confPhone').textContent = document.getElementById('pPhone').value || '—';
+            document.getElementById('confRef').textContent = referredBy || 'Walk-in / Self';
+            document.getElementById('confSubtotal').textContent = 'Rs. ' + subTotal;
+            document.getElementById('confDiscount').textContent = 'Rs. ' + discount;
+            document.getElementById('confTotal').textContent = 'Rs. ' + finalTotal;
+            document.getElementById('confItems').innerHTML = cart.map(t =>
+                `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span>• ${t.name}</span><span>Rs.${t.price}</span></div>`
             ).join('');
-            document.getElementById('confName').textContent    = name;
-            document.getElementById('confAge').textContent     = document.getElementById('pAge').value || '-';
-            document.getElementById('confGender').textContent  = document.getElementById('pGender').value;
-            document.getElementById('confPhone').textContent   = document.getElementById('pPhone').value || '-';
-            document.getElementById('confRef').textContent     = referredBy || 'Walk-in / Self';
-            document.getElementById('confSubtotal').textContent= 'Rs. ' + subTotal;
-            document.getElementById('confDiscount').textContent= 'Rs. ' + discount;
-            document.getElementById('confTotal').textContent   = 'Rs. ' + finalTotal;
             document.getElementById('confirmModal').classList.add('open');
         }
 
         async function confirmAndSave() {
             document.getElementById('confirmModal').classList.remove('open');
             const name = document.getElementById('pName').value.trim();
-            let subTotal = cart.reduce((sum, item) => sum + item.price, 0);
-            let discount = parseFloat(document.getElementById('discount').value) || 0;
-            let finalTotal = Math.max(0, subTotal - discount);
+            const subTotal = cart.reduce((s, t) => s + (parseFloat(t.price) || 0), 0);
+            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            const finalTotal = Math.max(0, subTotal - discount);
             const referredBy = document.getElementById('pReferredBy').value.trim();
-
             const hclID = matchedPatientId || ('HCL' + Math.floor(100000 + Math.random() * 900000));
             const pin   = (matchedPatientId && matchedPatientPin) ? matchedPatientPin : Math.floor(100000 + Math.random() * 900000);
-
-            const patient = {
-                id: hclID, pin: pin,
-                name, age: document.getElementById('pAge').value,
-                gender: document.getElementById('pGender').value,
-                phone: document.getElementById('pPhone').value,
-                referred_by: referredBy
-            };
-
+            const patient = { id: hclID, pin, name, age: document.getElementById('pAge').value, gender: document.getElementById('pGender').value, phone: document.getElementById('pPhone').value, referred_by: referredBy };
             try {
                 await window.api.saveBookingWithRef(patient, cart, finalTotal, discount, referredBy);
-                const params = new URLSearchParams({
-                    id: hclID, pin, name, subtotal: subTotal, discount, total: finalTotal,
-                    tests: JSON.stringify(cart.map(c => c.name))
-                });
+                const params = new URLSearchParams({ id: hclID, pin, name, subtotal: subTotal, discount, total: finalTotal, tests: JSON.stringify(cart.map(c => c.name)) });
                 window.api.openReceiptWindow(params.toString());
                 showToast('Booking saved! Receipt opening...', 'success');
                 cart = []; matchedPatientId = null; matchedPatientPin = null;
+                ['pName','pPhone','pAge','pReferredBy','patientSearchInput'].forEach(id => { const e = document.getElementById(id); if(e) e.value = ''; });
                 document.getElementById('discount').value = 0;
-                document.getElementById('pName').value = '';
-                document.getElementById('pPhone').value = '';
-                document.getElementById('pAge').value = '';
-                document.getElementById('pReferredBy').value = '';
-                document.getElementById('patientSearchInput').value = '';
+                document.getElementById('pGender').value = 'Male';
                 updateCartUI();
-            } catch(e) {
-                showToast('Error saving booking: ' + e.message, 'error');
-            }
+            } catch(e) { showToast('Error saving booking: ' + e.message, 'error'); }
         }
 
-        initTests();
+        async function fetchPatientData(phone) {
+            if (!phone || (phone.length !== 10 && phone.length !== 11)) { matchedPatientId = null; matchedPatientPin = null; return; }
+            const patient = await window.api.getPatientByPhone(phone);
+            if (patient) {
+                document.getElementById('pName').value = patient.name || '';
+                document.getElementById('pAge').value = patient.age || '';
+                document.getElementById('pGender').value = patient.gender || 'Male';
+                matchedPatientId = patient.id;
+                try {
+                    const visits = await window.api.getPatientHistory('VISITS:' + patient.id);
+                    matchedPatientPin = (visits && visits.length > 0 && visits[0].pin) ? visits[0].pin : null;
+                } catch(e) { matchedPatientPin = null; }
+                showToast('Returning patient found: ' + patient.name, 'success');
+            } else { matchedPatientId = null; matchedPatientPin = null; }
+        }
 
-        // Populate referral datalist from past referrers
-        window.api.getReferralStats('all').then(rows => {
-            const dl = document.getElementById('referralList');
-            if(!dl) return;
-            rows.forEach(r => { const opt = document.createElement('option'); opt.value = r.referred_by; dl.appendChild(opt); });
-        }).catch(()=>{});
+        let searchTimeout = null;
+        async function searchPatientList(term) {
+            const sug = document.getElementById('patientSuggestions');
+            if (!term || term.length < 2) { sug.style.display = 'none'; return; }
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                const data = await window.api.getPatientHistory(term);
+                sug.innerHTML = '';
+                const uniq = {};
+                data.forEach(d => { if (!uniq[d.patient_id]) uniq[d.patient_id] = { id: d.patient_id, name: d.patient_name, phone: d.contact, age: d.age || '', gender: d.gender || 'Male' }; });
+                const patients = Object.values(uniq);
+                if (!patients.length) {
+                    sug.innerHTML = '<div class="sug-item" style="color:var(--text-muted)">No match found</div>';
+                } else {
+                    patients.forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = 'sug-item';
+                        div.innerHTML = `<strong>${p.name}</strong> <span style="color:var(--text-muted);">${p.phone || ''}</span> <span style="font-size:11px;color:var(--primary);">${p.id}</span>`;
+                        div.onclick = async () => {
+                            document.getElementById('patientSearchInput').value = p.name;
+                            sug.style.display = 'none';
+                            document.getElementById('pName').value = p.name || '';
+                            document.getElementById('pPhone').value = p.phone || '';
+                            if (p.age) document.getElementById('pAge').value = p.age;
+                            if (p.gender) document.getElementById('pGender').value = p.gender;
+                            matchedPatientId = p.id;
+                            try {
+                                const visits = await window.api.getPatientHistory('VISITS:' + p.id);
+                                matchedPatientPin = (visits && visits.length > 0 && visits[0].pin) ? visits[0].pin : null;
+                            } catch(e) { matchedPatientPin = null; }
+                            showToast('Patient loaded: ' + p.name, 'success');
+                        };
+                        sug.appendChild(div);
+                    });
+                }
+                sug.style.display = 'block';
+            }, 300);
+        }
 
-        window.addEventListener('DOMContentLoaded', () => initSidebar('new_booking.html'));
-
-async function fetchPatientData(phone) {
-  // Only trigger for complete phone numbers (10 or 11 digits)
-  if (!phone || (phone.length !== 10 && phone.length !== 11)) {
-    matchedPatientId = null;
-    matchedPatientPin = null;
-    return;
-  }
-  const patient = await window.api.getPatientByPhone(phone);
-  if (patient) {
-      document.getElementById('pName').value = patient.name || '';
-      document.getElementById('pAge').value = patient.age || '';
-      document.getElementById('pGender').value = patient.gender || 'Male';
-      matchedPatientId = patient.id;
-      // Fetch the patient's existing PIN to reuse on rebooking
-      try {
-          const visits = await window.api.getPatientHistory('VISITS:' + patient.id);
-          matchedPatientPin = (visits && visits.length > 0 && visits[0].pin) ? visits[0].pin : null;
-      } catch(e) { matchedPatientPin = null; }
-  } else {
-      matchedPatientId = null;
-      matchedPatientPin = null;
-  }
-}
-
-let searchTimeout = null;
-async function searchPatientList(term) {
-    const sug = document.getElementById('patientSuggestions');
-    if (!term || term.length < 2) {
-        sug.style.display = 'none';
-        return;
-    }
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(async () => {
-        const data = await window.api.getPatientHistory(term);
-        sug.innerHTML = '';
-        
-        // Extract distinct patients from booking rows
-        const uniquePatients = {};
-        data.forEach(d => {
-            if(!uniquePatients[d.patient_id]) {
-                uniquePatients[d.patient_id] = { id: d.patient_id, name: d.patient_name, phone: d.contact, age: d.age || '', gender: d.gender || 'Male' };
+        document.addEventListener('click', e => {
+            if (!document.getElementById('patientSearchInput').contains(e.target)) {
+                document.getElementById('patientSuggestions').style.display = 'none';
             }
         });
-        const patients = Object.values(uniquePatients);
 
-        if (patients.length === 0) {
-            sug.innerHTML = '<div style="padding:10px; color:gray;">No match found.</div>';
-        } else {
-            patients.forEach(p => {
-                const div = document.createElement('div');
-                div.style.padding = '10px';
-                div.style.borderBottom = '1px solid #ddd';
-                div.style.cursor = 'pointer';
-                div.innerHTML = '<strong>' + p.name + '</strong> - ' + (p.phone || 'No phone') + ' (ID: ' + p.id + ')';
-                div.onmouseover = () => div.style.background = '#f0f4ff';
-                div.onmouseout = () => div.style.background = '';
-                div.onclick = async () => {
-                    document.getElementById('patientSearchInput').value = p.name;
-                    sug.style.display = 'none';
-                    document.getElementById('pName').value = p.name || '';
-                    document.getElementById('pPhone').value = p.phone || '';
-                    if (p.age) document.getElementById('pAge').value = p.age;
-                    if (p.gender) document.getElementById('pGender').value = p.gender;
-                    matchedPatientId = p.id;
-                    // Fetch existing PIN for this returning patient
-                    try {
-                        const visits = await window.api.getPatientHistory('VISITS:' + p.id);
-                        matchedPatientPin = (visits && visits.length > 0 && visits[0].pin) ? visits[0].pin : null;
-                    } catch(e) { matchedPatientPin = null; }
-                };
-                sug.appendChild(div);
-            });
-        }
-        sug.style.display = 'block';
-    }, 400);
-}
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                const focusable = Array.from(document.querySelectorAll('input, select, button')).filter(el => !el.disabled && el.offsetParent !== null);
+                const idx = focusable.indexOf(document.activeElement);
+                if (idx > -1 && idx + 1 < focusable.length) { e.preventDefault(); focusable[idx + 1].focus(); }
+            }
+        });
 
-// Global Enter key navigation — registered ONCE at page load
-document.addEventListener("keydown", function(e) {
-    if (e.key === "Enter") {
-        const focusable = Array.from(document.querySelectorAll("input, select, button")).filter(el => !el.disabled && el.offsetParent !== null);
-        const index = focusable.indexOf(document.activeElement);
-        if (index > -1 && index + 1 < focusable.length) {
-            e.preventDefault();
-            focusable[index + 1].focus();
-        }
-    }
-});
-</script>
+        window.addEventListener('load', () => {
+            initTests();
+            updateCartUI();
+            window.api.getReferralStats('all').then(rows => {
+                const dl = document.getElementById('referralList');
+                if (dl) rows.forEach(r => { const o = document.createElement('option'); o.value = r.referred_by; dl.appendChild(o); });
+            }).catch(()=>{});
+        });
+
+        window.addEventListener('DOMContentLoaded', () => initSidebar('new_booking.html'));
+    </script>
 </body>
-
-<!-- Booking Confirmation Modal -->
-<div class="modal-overlay" id="confirmModal">
-    <div class="modal" style="max-width:520px;">
-        <div class="modal-header">
-            <h3>✅ Confirm Booking</h3>
-            <button class="modal-close" onclick="document.getElementById('confirmModal').classList.remove('open')">×</button>
-        </div>
-        <div style="background:var(--surface-2);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;font-size:13px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div><span style="color:var(--text-muted);">Patient</span><br><strong id="confName">-</strong></div>
-            <div><span style="color:var(--text-muted);">Phone</span><br><strong id="confPhone">-</strong></div>
-            <div><span style="color:var(--text-muted);">Age / Gender</span><br><strong><span id="confAge">-</span> / <span id="confGender">-</span></strong></div>
-            <div><span style="color:var(--text-muted);">Referred By</span><br><strong id="confRef">-</strong></div>
-        </div>
-        <div style="margin-bottom:16px;">
-            <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Tests Selected</div>
-            <div id="confItems"></div>
-        </div>
-        <div style="background:var(--primary-light);border-radius:var(--radius-sm);padding:14px;font-size:13px;">
-            <div class="confirm-item"><span>Subtotal</span><span id="confSubtotal">-</span></div>
-            <div class="confirm-item"><span>Discount</span><span id="confDiscount">-</span></div>
-            <div class="confirm-total"><span>Total to Pay</span><span id="confTotal">-</span></div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="document.getElementById('confirmModal').classList.remove('open')">← Edit</button>
-            <button class="btn btn-success btn-lg" onclick="confirmAndSave()">✔ Confirm & Save</button>
-        </div>
-    </div>
-</div>
 </html>
-
-
-
-

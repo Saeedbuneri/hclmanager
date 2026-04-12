@@ -456,40 +456,44 @@ let rData = typeof resultJson === 'string' ? JSON.parse(resultJson) : resultJson
       } catch(_) {}
 
       snaps.forEach(docSnap => {
-          const p = docSnap.data();
+          const raw = docSnap.data();
           const patientId = docSnap.id;
-          const gender    = (p.gender || 'Unknown').trim() || 'Unknown';
+          const gender    = (raw.gender || 'Unknown').trim() || 'Unknown';
 
-          if (!p.visits) return;
+          // ── Unpack legacy flat-key schema ( visits.XXXXX → nested ) ──
+          const visits = Object.assign({}, raw.visits || {});
+          Object.keys(raw).forEach(k => {
+              if (k.startsWith('visits.')) {
+                  const bId = k.substring(7);
+                  if (!visits[bId]) visits[bId] = raw[k];
+              }
+          });
 
-          for (const [bId, v] of Object.entries(p.visits)) {
+          if (!Object.keys(visits).length) return;
+
+          for (const [bId, v] of Object.entries(visits)) {
               const t = v.timestamp || 0;
               if (t < startTime || t >= endTime) continue;
 
               const gross    = Number(v.total_amount || 0);
               const discount = Number(v.discount     || 0);
-              const net      = Math.max(0, gross - discount); // matches desktop "total_amount - discount"
+              const net      = Math.max(0, gross - discount);
               const status   = v.status || 'Pending';
-              const day      = new Date(t).toISOString().split('T')[0]; // 'YYYY-MM-DD'
+              const day      = new Date(t).toISOString().split('T')[0];
 
-              // ── Overview ───────────────────────────────────────
               totalVisits++;
               totalRevenue += net;
               if (status !== 'Completed') pendingCount++;
 
-              // ── Status map ─────────────────────────────────────
               statusMap[status] = (statusMap[status] || 0) + 1;
 
-              // ── Daily trends ───────────────────────────────────
               if (!dailyMap[day]) dailyMap[day] = { revenue: 0, visits: 0 };
               dailyMap[day].revenue += net;
               dailyMap[day].visits++;
 
-              // ── Gender (unique patients only) ──────────────────
               if (!genderMap[gender]) genderMap[gender] = new Set();
               genderMap[gender].add(patientId);
 
-              // ── Top tests ──────────────────────────────────────
               if (v.test_names && Array.isArray(v.test_names)) {
                   const perTestShare = v.test_names.length > 0 ? net / v.test_names.length : 0;
                   v.test_names.forEach(tName => {
@@ -499,7 +503,6 @@ let rData = typeof resultJson === 'string' ? JSON.parse(resultJson) : resultJson
                   });
               }
 
-              // ── Today stats (always real-time, ignore filter) ──
               if (t >= todayStart) {
                   todayRevenue += net;
                   todayVisits++;

@@ -133,8 +133,12 @@
                 correctLevel: QRCode.CorrectLevel.H
             });
             setTimeout(() => {
-                // Auto-save removed — user can click Download PDF button instead
-            }, 0);
+                // Auto-save PDF receipt on load
+                const urlParams2 = new URLSearchParams(window.location.search);
+                if (window.api && window.api.savePdf) {
+                    window.api.savePdf('Receipt_' + (urlParams2.get('id') || Date.now()), 'HCL_Slips');
+                }
+            }, 800);
         }
 
         function saveReceiptPdf() {

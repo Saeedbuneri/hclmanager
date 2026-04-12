@@ -128,13 +128,13 @@
                                 <td>
                                     <div style="font-weight:bold; color: #0f172a;">${booking.patient_name || 'N/A'}</div>
                                     <div style="font-size:12px; color: #64748b;">ID: ${booking.patient_id}</div>
-                                    <div style="font-size:12px; color: #2563eb; font-weight: bold; margin-top:2px;">PIN: ${booking.pin || '123456'}</div>
                                 </td>
                                 <td>${booking.contact || 'N/A'}</td>
                                 <td style="font-weight:bold;">Rs. ${booking.total_amount}</td>
                                 <td><span class="status-badge ${isCompleted ? 'status-completed' : 'status-pending'}">${booking.status}</span></td>
                                 <td style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center; border-bottom: none;">
-                                    <button onclick="window.api.openPrintWindow('db_id=${booking.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; ${!isCompleted ? 'opacity:0.5;' : ''}" ${!isCompleted ? 'disabled' : ''}>Print</button>
+                                    <button onclick="window.api.openPrintWindow('db_id=${booking.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" title="Print Lab Results Report">Report</button>
+                                    <button onclick="printReceipt('${booking.id}', '${(booking.patient_name || '').replace(/'/g, '\\'')}', '${booking.total_amount}', '${booking.discount || 0}', '${booking.pin || '123456'}')" style="background:#0ea5e9; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" title="Print Initial Receipt">Receipt</button>
                                     <button onclick="revertBookingLocal('${booking.id}')" style="background:#f59e0b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; ${!isCompleted ? 'opacity:0.5;' : ''}" ${!isCompleted ? 'disabled' : ''}>Edit</button>
                                     <button onclick="deleteBookingLocal('${booking.id}')" style="background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">Delete</button>
                                 </td>
@@ -159,6 +159,7 @@
                                     patient_id: b.patient_id,
                                     patient_name: b.patient_name,
                                     contact: b.contact,
+                                    pin: b.pin,
                                     last_visit: b.date,
                                     total_visits: 1
                                 });
@@ -166,6 +167,7 @@
                                 let p = patientMap.get(b.patient_id);
                                 p.total_visits++;
                                 if (b.date > p.last_visit) p.last_visit = b.date;
+                                if (!p.pin && b.pin) p.pin = b.pin;
                             }
                         });
                     }
@@ -175,10 +177,14 @@
                     patientsAgg.forEach(p => {
                         const dateRaw = p.last_visit ? new Date(p.last_visit) : null;
                         const dateStr = dateRaw ? dateRaw.toLocaleDateString() : 'N/A';
+                        const pin = p.pin || '—';
                         tableBody.innerHTML += `
                             <tr>
                                 <td>${dateStr}</td>
-                                <td style="font-weight:bold;">${p.patient_name || 'N/A'}</td>
+                                <td>
+                                    <div style="font-weight:bold;">${p.patient_name || 'N/A'}</div>
+                                    <div style="font-size:11px; color:#2563eb; font-weight:700; margin-top:3px;">🔑 PIN: ${pin}</div>
+                                </td>
                                 <td>${p.patient_id}</td>
                                 <td>${p.contact || 'N/A'}</td>
                                 <td><span style="background:#e2e8f0; padding:2px 8px; border-radius:10px; font-weight:bold;">${p.total_visits}</span></td>
@@ -269,6 +275,31 @@
 
         function closeModal() {
             document.getElementById('patientVisitsModal').style.display = 'none';
+        }
+
+        async function printReceipt(bookingId, pName, totalAmount, discount, pin) {
+            try {
+                // Fetch tests for this specific booking to populate receipt
+                const report = await window.api.getBookingReport(bookingId);
+                let tests = [];
+                if (report && report.results) {
+                    tests = report.results.map(r => r.test_name);
+                }
+                const subtotal = Number(totalAmount) + Number(discount);
+                const params = new URLSearchParams({
+                    id: bookingId,
+                    pin: pin,
+                    name: pName,
+                    subtotal: subtotal,
+                    discount: discount,
+                    total: totalAmount,
+                    tests: JSON.stringify(tests)
+                });
+                window.api.openReceiptWindow(params.toString());
+            } catch(e) {
+                console.error("Error printing receipt", e);
+                alert("Could not print receipt.");
+            }
         }
 
         async function revertBookingLocal(id) {

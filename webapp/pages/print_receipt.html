@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <title>HCL Receipt Slip</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -134,13 +135,27 @@
                 correctLevel: QRCode.CorrectLevel.H
             });
             setTimeout(() => {
-                // Auto-save removed — user can click Download PDF button instead
-            }, 0);
+                saveReceiptPdf();
+            }, 800);
         }
 
         function saveReceiptPdf() {
             const urlParams = new URLSearchParams(window.location.search);
-            window.api.savePdf('Receipt_' + (urlParams.get('id') || Date.now()), 'HCL_Slips');
+            const filename = 'Receipt_' + (urlParams.get('id') || Date.now()) + '.pdf';
+            
+            if (window.api && window.api.savePdf) {
+                window.api.savePdf(filename.replace('.pdf', ''), 'HCL_Slips');
+            } else {
+                const element = document.querySelector('.container');
+                const opt = {
+                    margin: 0,
+                    filename: filename,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
+                };
+                html2pdf().set(opt).from(element).save();
+            }
         }
     </script>
 <script type="module" src="../assets/firebase_config.js"></script></body>
