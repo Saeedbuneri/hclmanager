@@ -513,10 +513,10 @@ input:focus, select:focus, textarea:focus {
   .visit-card { padding: 12px; }
   .visit-header { flex-direction: column; gap: 8px; }
 
-  /* Form inputs bigger */
+  /* Form inputs bigger (must be 16px min to prevent iOS zoom) */
   input[type="text"], input[type="number"], input[type="email"],
   input[type="password"], input[type="date"], select, textarea {
-    padding: 12px 14px; font-size: 15px; min-height: 44px;
+    padding: 12px 14px; font-size: 16px; min-height: 44px;
   }
 
   /* New booking form: 2-col → 1-col */
