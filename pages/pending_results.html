@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HCL – Pending Results</title>
+    <link rel="stylesheet" href="../assets/style.css">
+    <script src="../assets/shared.js"></script>
+    <script src="../assets/sidebar.js"></script>
+    <style>
+        .param-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+        .param-block { background: var(--surface-2); border-radius: var(--radius-sm); padding: 12px 14px; border: 1px solid var(--border); }
+        .param-label { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .param-ref   { font-size: 10px; color: var(--text-light); }
+        .prev-val    { font-size: 10px; color: var(--info); font-weight: 600; }
+        .result-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 15px; font-weight: 700; background: var(--surface); color: var(--text); transition: all 0.2s; font-family: var(--font); }
+        .result-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14,165,233,0.12); }
+        .result-input.hi { border-color: var(--danger); color: var(--danger); background: #fef2f2; }
+        .result-input.lo { border-color: var(--info); color: var(--info); background: #e0f2fe; }
+        .overdue-row td { background: #fef3c7 !important; }
+        .auto-save-badge { font-size: 11px; color: var(--success); font-weight: 600; opacity: 0; transition: opacity 0.4s; }
+        .auto-save-badge.show { opacity: 1; }
+        .test-group { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 18px; overflow: hidden; }
+        .test-group-header { background: var(--surface-2); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .test-group-header h4 { font-size: 14px; font-weight: 700; margin: 0; }
+    </style>
+</head>
+<body>
+<div id="sidebar-container"></div>
+
+<div class="main-content">
+    <div class="page-header">
+        <div>
+            <h1>🔬 Pending Results</h1>
+            <p>Click a row to enter or review results.</p>
+        </div>
+        <div class="flex-center">
+            <button class="btn btn-ghost btn-sm" onclick="loadPending()">🔄 Refresh</button>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table class="queue-table">
+            <thead>
+                <tr>
+                    <th>HCL ID</th>
+                    <th>Patient</th>
+                    <th>Booked</th>
+                    <th>Tests</th>
+                    <th>Status</th>
+                    <th>Sync</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="pendingTableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tests List Modal -->
+<div class="modal-overlay" id="testsModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <div>
+                <h3 id="testsModalTitle">Patient Tests</h3>
+                <p id="testsModalPatient" style="color:var(--text-muted);font-size:13px;margin-top:4px;"></p>
+            </div>
+            <button class="modal-close" onclick="closeTestsModal()">×</button>
+        </div>
+        <div id="testListContainer"></div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeTestsModal()">Close</button>
+            <button class="btn btn-success" onclick="printReport()">🖨 Print Report</button>
+        </div>
+    </div>
+</div>
+
+<!-- Data Entry Modal -->
+<div class="modal-overlay" id="entryModal">
+    <div class="modal modal-xl">
+        <div class="modal-header">
+            <div>
+                <h3 id="modalTitle">Enter Results</h3>
+                <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
+                    <span style="font-size:13px;color:var(--text-muted);">For <strong id="modalPatient"></strong></span>
+                    <span class="auto-save-badge" id="autosaveBadge">✓ Draft saved</span>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;">
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+        </div>
+
+        <input type="hidden" id="currentBookingId">
+        <input type="hidden" id="currentTestId">
+
+        <!-- Parameter inputs rendered here -->
+        <div id="dynamicInputs"></div>
+
+        <!-- Comment section -->
+        <div class="form-group mt-3">
+            <label>🗒 Technician Notes / Observation</label>
+            <textarea id="resultComment" rows="2" placeholder="Optional: e.g. Sample haemolysed, repeat advised..."></textarea>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal()">← Back to Tests</button>
+            <button class="btn btn-primary" onclick="saveAndSync()" id="saveBtn">💾 Save Results</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let latestPendings  = [];
+let currentBookingData = null;
+let autoSaveTimer   = null;
+
+// ── Load Pending Queue ──────────────────────────────────────────
+async function loadPending() {
+    const tbody = document.getElementById('pendingTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;"><div class="skeleton skeleton-line" style="width:80%;margin:0 auto;"></div></td></tr>';
+    try {
+        latestPendings = await window.api.getPendingBookings();
+        tbody.innerHTML = '';
+        if (latestPendings.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:50px;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">🎉</div>All clear! No pending bookings.</td></tr>';
+            setTitleBadge(0, 'Pending Results');
+            return;
+        }
+        setTitleBadge(latestPendings.length, 'Pending Results');
+
+        latestPendings.forEach(p => {
+            const testsJson = JSON.parse(p.tests_json || '[]');
+            const allDone   = testsJson.every(t => t.completed);
+            const someDone  = testsJson.some(t => t.completed);
+            const statusText = allDone ? 'Ready' : someDone ? 'Partial' : 'Pending';
+            const statusCls  = allDone ? 'badge-success' : someDone ? 'badge-warning' : 'badge-gray';
+
+            const hoursAgo = (Date.now() - new Date(p.date).getTime()) / 3600000;
+            const isOverdue = !allDone && hoursAgo > 3;
+
+            const syncIcon = p.synced ? '<span class="sync-icon synced" title="Synced">☁️</span>' : '<span class="sync-icon pending" title="Not synced">🔄</span>';
+
+            const tr = document.createElement('tr');
+            if (isOverdue) tr.classList.add('overdue-row');
+            tr.innerHTML = [
+                '<td style="font-weight:800;color:var(--primary);">' + p.patient_id + '</td>',
+                '<td><div style="font-weight:600;">' + p.patient_name + '</div><div style="font-size:11px;color:var(--text-muted);">' + (p.gender || '') + (p.age ? ' · ' + p.age + ' yrs' : '') + '</div></td>',
+                '<td><div>' + new Date(p.date).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</div><div style="font-size:11px;color:var(--text-muted);">' + timeSince(p.date) + (isOverdue ? ' <span style="color:var(--danger);font-size:10px;">LATE</span>' : '') + '</div></td>',
+                '<td><small style="color:var(--text-muted);">' + testsJson.map(t => (t.completed ? '<span style="color:var(--success);">✔ ' : '') + t.test_name + (t.completed ? '</span>' : '')).join(', ') + '</small></td>',
+                '<td><span class="badge ' + statusCls + '">' + statusText + '</span></td>',
+                '<td>' + syncIcon + '</td>',
+                '<td><button class="btn btn-primary btn-sm" onclick="openTestsModal(' + p.id + ')">View / Enter</button></td>'
+            ].join('');
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:30px;">Error loading bookings. Check backend.</td></tr>';
+    }
+}
+
+// ── Tests List Modal ────────────────────────────────────────────
+function openTestsModal(bookingId) {
+    const p = latestPendings.find(b => b.id == bookingId);
+    if (!p) return;
+    currentBookingData = p;
+    document.getElementById('testsModalTitle').textContent = 'Tests — ' + p.patient_name;
+    document.getElementById('testsModalPatient').textContent = p.patient_id + ' · Booked ' + fmtDate(p.date);
+
+    const container = document.getElementById('testListContainer');
+    container.innerHTML = '';
+    const testsJson = JSON.parse(p.tests_json || '[]');
+
+    testsJson.forEach(test => {
+        const isCompleted = test.completed === 1;
+        const div = document.createElement('div');
+        div.className = 'test-list-item ' + (isCompleted ? 'test-completed' : 'test-pending');
+        div.innerHTML = [
+            '<div><strong>' + test.test_name + '</strong></div>',
+            '<div><span class="badge ' + (isCompleted ? 'badge-success' : 'badge-warning') + '">' + (isCompleted ? '✔ Done' : 'Pending') + '</span></div>'
+        ].join('');
+        if (!isCompleted) {
+            div.onclick = () => openDataEntry(p.id, test.test_id, test.test_name, p.patient_name, test.parameters, test.parameter_data);
+        }
+        container.appendChild(div);
+    });
+
+    document.getElementById('testsModal').classList.add('open');
+}
+function closeTestsModal() { document.getElementById('testsModal').classList.remove('open'); }
+
+// ── Data Entry Modal ────────────────────────────────────────────
+async function openDataEntry(dbId, testId, testName, pName, parametersStr, parameterDataStr) {
+    document.getElementById('currentBookingId').value = dbId;
+    document.getElementById('currentTestId').value    = testId;
+    document.getElementById('modalTitle').textContent = testName;
+    document.getElementById('modalPatient').textContent = pName;
+    document.getElementById('resultComment').value = '';
+
+    const params = JSON.parse(parametersStr || '[]');
+    let paramDataObj = null;
+    try { if (parameterDataStr) paramDataObj = JSON.parse(parameterDataStr); } catch(e) {}
+
+    // Try to get previous results for comparison
+    let prevResults = {};
+    try {
+        const hist = await window.api.getPatientHistory('PREV:' + currentBookingData.patient_id + ':' + testId);
+        if (hist && hist.length > 0 && hist[0].parameter_data) {
+            prevResults = JSON.parse(hist[0].parameter_data);
+        }
+    } catch(e) {}
+
+    // Draft key for auto-save
+    const draftKey = 'draft_' + dbId + '_' + testId;
+    let draft = null;
+    try { draft = JSON.parse(localStorage.getItem(draftKey)); } catch(e) {}
+
+    const container = document.getElementById('dynamicInputs');
+    container.innerHTML = '';
+
+    params.forEach((param, idx) => {
+        const existingVal = draft && draft[param.name] !== undefined ? draft[param.name]
+                          : (paramDataObj && paramDataObj[param.name] !== undefined ? paramDataObj[param.name] : '');
+        const prevVal = prevResults[param.name];
+
+        // Parse ref range
+        let minVal = '', maxVal = '';
+        if (param.normalMin !== undefined) { minVal = param.normalMin; maxVal = param.normalMax; }
+        else if (param.ref) {
+            const m = param.ref.match(/([0-9.]+)\s*[-–]\s*([0-9.]+)/);
+            if (m) { minVal = m[1]; maxVal = m[2]; }
+        }
+
+        const block = document.createElement('div');
+        block.className = 'param-block';
+        block.innerHTML = `
+            <div class="param-label">
+                <span>${param.name} <span style="font-weight:400;font-size:10px;">(${param.unit || '-'})</span></span>
+                <span class="param-ref">Ref: ${param.ref || '-'}</span>
+            </div>
+            ${prevVal !== undefined ? '<div class="prev-val">Prev: ' + prevVal + '</div>' : ''}
+              ${param.type === 'posneg' 
+                  ? `<select id="param_${idx}" class="result-input" data-name="${param.name}">
+                        <option value="">Select Result...</option>
+                        <option value="Negative" ${existingVal === 'Negative' ? 'selected' : ''}>Negative</option>
+                        <option value="Positive" ${existingVal === 'Positive' ? 'selected' : ''}>Positive</option>
+                    </select>`
+                  : `<input type="number" step="any" id="param_${idx}"
+                         value="${existingVal}"
+                         class="result-input" data-name="${param.name}"
+                         data-min="${minVal}" data-max="${maxVal}"
+                         placeholder="Enter value">`
+              }
+              <div class="range-indicator" id="rangebar_${idx}" style="display:${existingVal && param.type !== 'posneg' ? 'block' : 'none'};">
+                  <div class="range-bar"><div class="range-bar-fill" id="rfill_${idx}"></div></div>
+              </div>
+          `;
+          container.appendChild(block);
+
+          const inp = block.querySelector('.result-input');
+        inp.addEventListener('input', () => {
+            updateRangeBar(idx, inp.value, minVal, maxVal);
+            scheduleAutoSave(dbId, testId, params);
+        });
+        if (existingVal) updateRangeBar(idx, existingVal, minVal, maxVal);
+    });
+
+    document.getElementById('testsModal').classList.remove('open');
+    document.getElementById('entryModal').classList.add('open');
+    setTimeout(() => { const first = container.querySelector('.result-input'); if (first) first.focus(); }, 100);
+}
+
+function updateRangeBar(idx, val, min, max) {
+    const input   = document.getElementById('param_' + idx);
+    const barWrap = document.getElementById('rangebar_' + idx);
+    const fill    = document.getElementById('rfill_' + idx);
+    if (!input || !barWrap) return;
+
+    const v = parseFloat(val);
+    if (isNaN(v)) { barWrap.style.display = 'none'; input.className = 'result-input'; return; }
+
+    barWrap.style.display = 'block';
+    const minN = parseFloat(min), maxN = parseFloat(max);
+    if (!isNaN(minN) && !isNaN(maxN) && maxN > minN) {
+        const pct = Math.min(100, Math.max(0, ((v - minN) / (maxN - minN)) * 100));
+        const isHigh = v > maxN, isLow = v < minN;
+        fill.style.width = pct + '%';
+        fill.className = 'range-bar-fill ' + (isHigh ? 'high' : isLow ? 'low' : 'normal');
+        input.className = 'result-input ' + (isHigh ? 'hi' : isLow ? 'lo' : '');
+    } else {
+        fill.style.width = '50%';
+        fill.className = 'range-bar-fill normal';
+        input.className = 'result-input';
+    }
+}
+
+function scheduleAutoSave(dbId, testId, params) {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+        const draftKey = 'draft_' + dbId + '_' + testId;
+        const draft = {};
+        params.forEach((p, idx) => {
+            const el = document.getElementById('param_' + idx);
+            if (el) draft[p.name] = el.value;
+        });
+        localStorage.setItem(draftKey, JSON.stringify(draft));
+        const badge = document.getElementById('autosaveBadge');
+        badge.classList.add('show');
+        setTimeout(() => badge.classList.remove('show'), 2000);
+    }, 800);
+}
+
+function closeModal() {
+    // Clear auto-save timer
+    clearTimeout(autoSaveTimer);
+    document.getElementById('entryModal').classList.remove('open');
+    if (currentBookingData) openTestsModal(currentBookingData.id);
+}
+
+async function saveAndSync() {
+    const id     = document.getElementById('currentBookingId').value;
+    const testId = document.getElementById('currentTestId').value;
+    const comment = document.getElementById('resultComment').value.trim();
+
+    const inputs  = document.querySelectorAll('#dynamicInputs .result-input');
+    const dataObj = {};
+    inputs.forEach(inp => { dataObj[inp.dataset.name] = inp.value; });
+
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+
+    try {
+        await window.api.completeResult(id, testId, JSON.stringify({ ...dataObj, _comment: comment }));
+
+        // Clear draft
+        const draftKey = 'draft_' + id + '_' + testId;
+        localStorage.removeItem(draftKey);
+
+        document.getElementById('entryModal').classList.remove('open');
+        showToast('Results saved successfully!', 'success');
+        await loadPending();
+        const updated = latestPendings.find(b => b.id == id);
+        if (updated) openTestsModal(parseInt(id));
+        else closeTestsModal();
+    } catch(e) {
+        showToast('Failed to save results. Please retry.', 'error');
+        console.error(e);
+    } finally {
+        btn.disabled = false; btn.textContent = '💾 Save Results';
+    }
+}
+
+function printReport() {
+    if (currentBookingData) window.api.openPrintWindow('db_id=' + currentBookingData.id);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    initSidebar('pending_results.html');
+    loadPending();
+
+    // Enter key navigation inside dynamicInputs
+    document.getElementById('dynamicInputs').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.ctrlKey) {
+            const inputs = Array.from(this.querySelectorAll('.result-input'));
+            const idx = inputs.indexOf(document.activeElement);
+            if (idx > -1 && idx + 1 < inputs.length) { e.preventDefault(); inputs[idx + 1].focus(); }
+            else if (idx === inputs.length - 1) { e.preventDefault(); saveAndSync(); }
+        }
+    });
+});
+</script>
+<script type="module" src="../assets/firebase_config.js"></script></body>
+</html>

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>HCL Test Report</title>
+        <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f1f5f9;
+            color: #111827;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .main-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 850px;
+            padding: 40px 50px;
+        }
+
+        /* Clean Header */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #1a237e;
+            margin-bottom: 20px;
+        }
+
+        .lab-brand {
+            margin-left: 10px;
+        }
+
+        .lab-brand h1 {
+            font-size: 26px;
+            color: #1a237e;
+            font-weight: 800;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .lab-brand .lab-subtitle {
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .lab-contact {
+            font-size: 11px;
+            color: #4b5563;
+            line-height: 1.4;
+        }
+
+        .lab-tagline {
+            text-align: right;
+        }
+
+        .patient-access-info {
+            font-size: 11px;
+            color: #4b5563;
+            line-height: 1.5;
+            text-align: right;
+            border: 1px solid #e5e7eb;
+            padding: 6px 10px;
+            border-radius: 4px;
+            background: #f9fafb;
+        }
+
+        /* Elegant Patient Info Section */
+        .patient-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 20px;
+            padding: 15px 0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .patient-box div {
+            font-size: 13px;
+            color: #374151;
+        }
+
+        .patient-box strong {
+            color: #111827;
+            display: inline-block;
+            width: 110px;
+            font-weight: 600;
+        }
+
+        /* Minimalist Test Results Section */
+        .test-section {
+            margin-bottom: 35px;
+        }
+
+        .test-title {
+            font-size: 15px;
+            color: #1a237e;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: #eef2ff;
+            padding: 5px 12px;
+            border-left: 4px solid #1a237e;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #111827;
+            border-bottom: 2px solid #111827;
+            border-top: 1px solid #d1d5db;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 8px 12px;
+            font-size: 13px;
+            color: #1f2937;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        tr:nth-child(even) td {
+            background-color: #f9fafb;
+        }
+
+        .abnormal-val { font-weight: 700; }
+        .normal-val { font-weight: 600; }
+
+        .flag-high { background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 6px; border: 1px solid #fecaca; }
+        .flag-low { background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 6px; border: 1px solid #bfdbfe; }
+
+
+        /* Footer & Signatures */
+        .signatures {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 50px;
+            padding-top: 20px;
+        }
+
+        .sign-block {
+            text-align: center;
+            width: 180px;
+        }
+
+        .sign-line {
+            border-top: 1px solid #111827;
+            margin-bottom: 8px;
+        }
+
+        .sign-title {
+            font-size: 12px;
+            color: #111827;
+            font-weight: 600;
+        }
+
+        .report-footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 10px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 15px;
+            line-height: 1.6;
+        }
+
+        /* Print Actions */
+        .action-buttons {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px dashed #cbd5e1;
+        }
+
+        .btn {
+            background: #1a237e;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 0 10px;
+        }
+
+        .btn-secondary {
+            background: #4b5563;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; margin: 0; padding: 0; }
+            .main-wrapper { padding: 0; display: block; }
+            .container { box-shadow: none; padding: 0; max-width: 100%; border: none; margin: 0; }
+            
+            .test-title { background: #eef2ff !important; border-left: 4px solid #1a237e !important; }
+            tr:nth-child(even) td { background-color: #f9fafb !important; }
+            .abnormal-flag { background: #fee2e2 !important; color: #991b1b !important; }
+            .patient-access-info { background: #f9fafb !important; }
+            
+            @page { margin: 15mm; }
+        }
+    </style>
+</head>
+<body onload="loadReport()">
+    <div class="main-wrapper">
+        <div class="container">
+            
+            <!-- Modern Header - Matching jsPDF style -->
+            <div class="report-header">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <img src="../assets/logo.png" alt="HCL Logo" style="width: 80px; height: auto;" onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIHJ4PSIyMCIgZmlsbD0iIzFhMjM3ZSIvPjxwYXRoIGQ9Ik01MCAyNVY3NU0yNSA1MEg3NSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIxNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+'">
+                    <div class="lab-brand">
+                        <h1 id="labNameEl">Healthcare Clinical Laboratory</h1>
+                        <div class="lab-subtitle" id="labSubtitleEl">Accredited Medical Laboratory Services | Jowar, Buner</div>
+                        <div class="lab-contact" id="labContactEl">
+                            Opposite RHC Jowarr, Buner<br>
+                            Phone: +92 313 9232928 | Email: hclonline@gmail.com
+                        </div>
+                    </div>
+                </div>
+                <div class="lab-tagline">
+                    <div class="patient-access-info" style="text-align: right; margin-top: 5px;">
+                        Patient ID: <strong id="rTopID" style="color:#1a237e;"></strong><br>
+                        <span id="printDate" style="font-size:10px; color:#9ca3af;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patient Information Box -->
+            <div class="patient-box">
+                <div><strong>Patient Name:</strong> <span id="rName">Loading...</span></div>
+                <div><strong>Reg. Date:</strong> <span id="rDate"></span></div>
+                <div><strong>Patient ID:</strong> <span id="rID"></span></div>
+                <div><strong>Gender / Age:</strong> <span id="rGenAge"></span></div>
+                <div><strong>Referred By:</strong> <span id="rRefBy">Self</span></div>
+                <div><strong>Sample Type:</strong> Blood / Serum</div>
+            </div>
+
+            <!-- Inject Tests Here -->
+            <div id="resultsContainer">
+                <p style="text-align: center; padding: 40px; color: #64748b;">Fetching diagnostic data...</p>
+            </div>
+
+            <!-- Signatures -->
+            <div class="signatures">
+                <div class="sign-block">
+                    <div class="sign-line"></div>
+                    <div class="sign-title">Lab Technologist</div>
+                </div>
+            </div>
+
+            <div class="report-footer">
+                Healthcare Clinical Laboratory - Jowar, Buner | Accredited by Medical Laboratory Standards | ISO 15189:2012 Certified |<br>
+                Address: Opposite RHC Jowarr, Buner | Phone: +92 313 9232928 | Email: hclonline@gmail.com |<br>
+                <!-- Footer text removed -->
+            </div>
+
+            <div class="action-buttons no-print">
+                <button class="btn btn-secondary" onclick="window.api.savePdf('Report_' + (new URLSearchParams(window.location.search).get('db_id') || Date.now()));">Download PDF</button>
+                <button class="btn" onclick="window.print()">Print Official Report</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('printDate').innerText = new Date().toLocaleString();
+
+        async function loadReport() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const bookingId = urlParams.get('db_id') || urlParams.get('id');
+            
+            if(!bookingId) {
+                document.getElementById('resultsContainer').innerHTML = "<p style='color:red; text-align:center;'>Invalid report link.</p>";
+                return;
+            }
+
+            try {
+                let data = null;
+                if (bookingId === 'mock') {
+                    document.title = "Mock Complete Report Preview";
+                    data = {
+                        booking: {
+                            patient_id: 'HCL-MOCK-001',
+                            patient_name: 'Jane Doe Preview',
+                            date: new Date().toISOString(),
+                            gender: 'Female',
+                            age: '34',
+                            pin: '9876',
+                            referred_by: 'Dr. Sarah Connor'
+                        },
+                        results: [
+                            {
+                                test_name: 'Complete Blood Count (CBC)',
+                                test_id: 991,
+                                completed: true,
+                                parameter_data: JSON.stringify({
+                                    "WBC": "13.5",
+                                    "RBC": "4.5",
+                                    "Hemoglobin": "10.0",
+                                    "Platelets": "250"
+                                }),
+                                parameters: JSON.stringify([
+                                    { name: "WBC", unit: "x10^9/L", ref: "4.0 - 11.0" },
+                                    { name: "RBC", unit: "x10^12/L", ref: "4.2 - 5.4" },
+                                    { name: "Hemoglobin", unit: "g/dL", ref: "12.0 - 16.0" },
+                                    { name: "Platelets", unit: "x10^9/L", ref: "150 - 450" }
+                                ]),
+                                comment: 'Slightly elevated WBC suggests possible mild infection. Hemoglobin is marginally low. Recommend follow-up in 2 weeks.'
+                            },
+                            {
+                                test_name: 'Lipid Profile',
+                                test_id: 992,
+                                completed: true,
+                                parameter_data: JSON.stringify({
+                                    "Total Cholesterol": "210",
+                                    "Triglycerides": "145",
+                                    "HDL Cholesterol": "55",
+                                    "LDL Cholesterol": "126"
+                                }),
+                                parameters: JSON.stringify([
+                                    { name: "Total Cholesterol", unit: "mg/dL", ref: "< 200" },
+                                    { name: "Triglycerides", unit: "mg/dL", ref: "< 150" },
+                                    { name: "HDL Cholesterol", unit: "mg/dL", ref: "> 50" },
+                                    { name: "LDL Cholesterol", unit: "mg/dL", ref: "< 130" }
+                                ]),
+                                comment: ''
+                            }
+                        ]
+                    };
+                } else {
+                    data = await window.api.getBookingReport(bookingId);
+                }
+                if (!data || !data.booking) {
+                    document.getElementById('resultsContainer').innerHTML = "<p style='text-align:center;'>Report data not found.</p>";
+                    return;
+                }
+
+                // Inject lab settings from localStorage (respects Admin Settings changes)
+                const labName = localStorage.getItem('labName') || 'Healthcare Clinical Laboratory';
+                const labAddress = localStorage.getItem('labAddress') || 'Opposite RHC Jowarr, Buner';
+                const labPhone = localStorage.getItem('labPhone') || '+92 313 9232928';
+                if(document.getElementById('labNameEl')) document.getElementById('labNameEl').innerText = labName;
+                if(document.getElementById('labSubtitleEl')) document.getElementById('labSubtitleEl').innerText = 'Accredited Medical Laboratory Services | ' + labAddress;
+                if(document.getElementById('labContactEl')) document.getElementById('labContactEl').innerHTML = labAddress + '<br>Phone: ' + labPhone + ' | Email: hclonline@gmail.com';
+
+                const b = data.booking;
+                document.getElementById('rID').innerText = b.patient_id;
+                document.getElementById('rName').innerText = b.patient_name;
+                document.getElementById('rDate').innerText = new Date(b.date).toLocaleDateString();
+                document.getElementById('rGenAge').innerText = (b.gender || 'Unknown') + ' / ' + (b.age || '?');
+                document.getElementById('rRefBy').innerText = b.referred_by || 'Self';
+                document.getElementById('rTopID').innerText = b.patient_id;
+                document.getElementById('printDate').innerText = 'Printed: ' + new Date().toLocaleString();
+
+                  let hideParam = urlParams.get('hide');
+                  let hiddenTestIds = hideParam ? hideParam.split(',').map(id => id.toString()) : [];
+
+                  let html = '';
+                  if(data.results && data.results.length > 0) {
+                      data.results.forEach(res => {
+                          if (hiddenTestIds.includes(res.test_id.toString())) return;
+                        html += `
+                        <div class="test-section">
+                            <div class="test-title">${res.test_name}</div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40%;">TEST PARAMETER</th>
+                                        <th style="width: 20%;">RESULT</th>
+                                        <th style="width: 15%;">UNIT</th>
+                                        <th style="width: 25%;">REF. INTERVAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+
+                        if (res.completed && res.parameter_data) {
+                            const resultsData = JSON.parse(res.parameter_data);
+                            const paramsDef = JSON.parse(res.parameters || '[]');
+                            
+                            paramsDef.forEach(p => {
+                                const rawVal = resultsData[p.name];
+                                const num = parseFloat(rawVal);
+                                let status = 'Normal';
+
+                                // Advanced ref parsing
+                                if (p.ref && !isNaN(num)) {
+                                    let match = String(p.ref).match(/^([<>]=?)?\\s*(-?\\d+(?:\\.\\d+)?)\\s*(?:-\\s*(-?\\d+(?:\\.\\d+)?))?$/);
+                                    if (match) {
+                                        if (match[1] === '<' && match[2]) status = num < parseFloat(match[2]) ? 'Normal' : 'High';
+                                        else if (match[1] === '>' && match[2]) status = num > parseFloat(match[2]) ? 'Normal' : 'Low';
+                                        else if (match[2] && match[3]) {
+                                            const low = parseFloat(match[2]), high = parseFloat(match[3]);
+                                            if (num < low) status = 'Low'; else if (num > high) status = 'High';
+                                        } else if (match[2]) status = num <= parseFloat(match[2]) ? 'Normal' : 'High';
+                                    }
+                                } else if (p.normalMin !== undefined && p.normalMax !== undefined && !isNaN(num)) {
+                                    if (num < parseFloat(p.normalMin)) status = 'Low'; else if (num > parseFloat(p.normalMax)) status = 'High';
+                                }
+
+                                let resultDisplay = rawVal || '-';
+                                if (status === 'High') {
+                                    resultDisplay = '<span style="color:#dc2626; font-weight:700;">' + resultDisplay + '</span> <span class="flag-high">HIGH</span>';
+                                } else if (status === 'Low') {
+                                    resultDisplay = '<span style="color:#2563eb; font-weight:700;">' + resultDisplay + '</span> <span class="flag-low">LOW</span>';
+                                } else if (rawVal && rawVal !== '') {
+                                    resultDisplay = '<span style="font-weight:600; color:#111827;">' + resultDisplay + '</span>';
+                                }
+
+                                html += '<tr><td><strong>' + p.name + '</strong></td><td>' + resultDisplay + '</td><td>' + (p.unit || '') + '</td><td>' + (p.ref || '') + '</td></tr>';
+                            });
+                        } else {
+                            html += `<tr><td colspan="4" style="text-align:center; color: #f59e0b; font-style: italic;">Results Pending...</td></tr>`;
+                        }
+
+                        html += `</tbody></table>`;
+                        if (res.comment && String(res.comment).trim() !== '') {
+                            html += `<div style="margin-top: 10px; background: #fffbeb; border-left: 3px solid #f59e0b; padding: 10px 15px; font-size: 12px; color: #92400e; border-radius: 4px;"><strong>Note:</strong> ${res.comment}</div>`;
+                        }
+                        html += `</div>`;
+                    });
+                } else {
+                    html = "<p style='text-align:center;'>No test parameters configured for this booking.</p>";
+                }
+
+                document.getElementById('resultsContainer').innerHTML = html;
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById('resultsContainer').innerHTML = "<p style='color:red; text-align:center;'>Error constructing report.</p>";
+            }
+        }
+    </script>
+<script type="module" src="../assets/firebase_config.js"></script></body>
+</html>
+

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>HCL Receipt Slip</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 380px;
+            max-width: 90%;
+            padding: 30px;
+        }
+        .header { text-align: center; margin-bottom: 25px; border-bottom: 2px dashed #ddd; padding-bottom: 15px; }
+        .logo { font-size: 22px; font-weight: 800; color: #333; margin-bottom: 5px; }
+        .subtitle { color: #666; font-size: 13px; }
+        
+        .patient-info { margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; font-size: 14px; }
+        .patient-info div { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .patient-info div:last-child { margin-bottom: 0; }
+        
+        .items { padding: 10px 15px; margin-bottom: 15px; font-size: 14px; }
+        .item-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        
+        .total { font-weight: bold; font-size: 16px; text-align: right; background: #f8f9fa; padding: 15px; border-radius: 8px; color: #333; }
+        
+        .online-portal { text-align: center; margin-top: 25px; background: #eef2f7; padding: 15px; border-radius: 8px; }
+        .online-portal p { color: #667eea; font-weight: bold; margin-bottom: 5px; font-size: 15px; }
+        .online-portal div { font-size: 14px; color: #555; margin-bottom: 3px; }
+        
+        .btn-print { width: 100%; background: #667eea; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; margin-top: 20px; transition: 0.3s; }
+        .btn-print:hover { background: #5a6fe0; }
+        
+        .footer { text-align: center; margin-top: 20px; font-size: 11px; color: #999; }
+        
+        @media print {
+            .no-print { display: none; }
+            body { background: white; padding: 0; display: block; }
+            .container { box-shadow: none; width: 100%; padding: 0; margin: 0; }
+            .online-portal { border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body onload="loadData()">
+    <div class="container">
+        <div class="header">
+            <div class="logo">Healthcare Clinical Laboratory</div>
+            <div class="subtitle">Jowar, Buner &nbsp;|&nbsp; Ph: +92 313 9232928</div>
+        </div>
+
+        <div class="patient-info">
+            <div><span>Date:</span> <span id="date"></span></div>
+            <div><span>Patient ID:</span> <strong id="hclid"></strong></div>
+            <div><span>Name:</span> <strong id="pname" style="color: #333;"></strong></div>
+        </div>
+
+        <div class="items" id="itemsContainer"></div>
+
+        <div class="total">
+            <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: normal; margin-bottom: 5px;">
+                <span>Subtotal:</span> <span>Rs. <span id="psubtotal">0</span></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: normal; margin-bottom: 5px;">
+                <span>Discount:</span> <span>Rs. <span id="pdiscount">0</span></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; border-top: 1px dotted #ccc; padding-top: 8px; margin-top: 5px; font-size: 17px;">
+                <span>Receipt Total:</span> <span>Rs. <span id="ptotal">0</span></span>
+            </div>
+            <div style="font-size: 11px; color: #888; margin-top: 8px; text-align: center; font-weight: normal;">
+                (Total and discounted price is receipt)
+            </div>
+        </div>
+
+        <div class="online-portal">
+            <p>⬇️ View Online Report ⬇️</p>
+            <div><strong>https://hclonline.vercel.app</strong></div>
+            <div id="qrcode" style="display: flex; justify-content: center; margin: 10px 0;"></div>
+            <div style="margin-top: 8px;">HCL ID: <strong id="portalId"></strong></div>
+            <div>Password: <strong id="portalPin" style="font-size:18px; color: #e74c3c;"></strong></div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;" class="no-print">
+            <button class="btn-print" onclick="window.print()" style="margin-top: 0; flex: 1;">🖨️ Print Slip</button>
+            <button class="btn-print" onclick="saveReceiptPdf()" style="margin-top: 0; flex: 1; background: #10b981;">⬇️ Download PDF</button>
+        </div>
+
+        <div class="footer">
+            Software Developed by Saeed<br>
+            Thank you for choosing HCL.
+        </div>
+    </div>
+
+    <script>
+        function loadData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            document.getElementById('date').innerText = new Date().toLocaleString();
+            document.getElementById('hclid').innerText = urlParams.get('id') || 'HCL----';
+            document.getElementById('portalId').innerText = urlParams.get('id') || 'HCL----';
+            document.getElementById('pname').innerText = urlParams.get('name') || 'Unknown User';
+            document.getElementById('portalPin').innerText = urlParams.get('pin') || '----';
+            
+            document.getElementById('psubtotal').innerText = urlParams.get('subtotal') || urlParams.get('total') || '0';
+            document.getElementById('pdiscount').innerText = urlParams.get('discount') || '0';
+            document.getElementById('ptotal').innerText = urlParams.get('total') || '0';
+
+            const tests = JSON.parse(urlParams.get('tests') || '[]');
+            let itemHTML = '';
+            tests.forEach(t => {
+                itemHTML += `<div class="item-row"><span>${t}</span></div>`;
+            });
+            document.getElementById('itemsContainer').innerHTML = itemHTML;
+
+            const qrcodeContainer = document.getElementById("qrcode");
+            qrcodeContainer.innerHTML = "";
+            new QRCode(qrcodeContainer, {
+                text: "https://hclonline.vercel.app",
+                width: 100,
+                height: 100,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            setTimeout(() => {
+                // Auto-save removed — user can click Download PDF button instead
+            }, 0);
+        }
+
+        function saveReceiptPdf() {
+            const urlParams = new URLSearchParams(window.location.search);
+            window.api.savePdf('Receipt_' + (urlParams.get('id') || Date.now()), 'HCL_Slips');
+        }
+    </script>
+<script type="module" src="../assets/firebase_config.js"></script></body>
+</html>
