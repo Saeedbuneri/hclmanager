@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <title>HCL – Dashboard</title>
+    <link rel="stylesheet" href="../assets/style.css">
+    <script src="../assets/shared.js"></script>
+    <script src="../assets/sidebar.js"></script>
+    <style>
+        /* ── Quick-action tiles ─────────────────────────────── */
+        .quick-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .quick-tile {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 14px;
+            text-decoration: none;
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+        .quick-tile:active { transform: scale(0.97); }
+        .quick-tile:hover { border-color: var(--primary); }
+        .quick-tile-icon { font-size: 26px; flex-shrink: 0; }
+        .quick-tile-label { font-size: 13px; font-weight: 700; color: var(--text); }
+        .quick-tile-sub { font-size: 11px; color: var(--text-muted); }
+
+        /* ── Stat Row ──────────────────────────────────────── */
+        .stat-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+        @media(max-width:768px){ .stat-row { grid-template-columns: 1fr 1fr; } }
+
+        /* ── Queue Cards ────────────────────────────────────── */
+        .queue-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 8px;
+            box-shadow: var(--shadow);
+        }
+        .queue-avatar {
+            width: 38px; height: 38px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 800; flex-shrink: 0;
+        }
+        .queue-info { flex: 1; min-width: 0; }
+        .queue-name { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .queue-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .queue-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+        .badge-done { background: #dcfce7; color: #059669; }
+        .badge-pending { background: #fef9c3; color: #d97706; }
+    </style>
+</head>
+<body>
+    <div id="sidebar-container"></div>
+    <script>initSidebar('dashboard.html')</script>
+
+    <div class="main-content">
+        <header>
+            <div>
+                <h1>Dashboard</h1>
+                <p id="dashDate" style="font-size:13px; color:var(--text-muted);"></p>
+            </div>
+        </header>
+
+        <!-- Quick Actions -->
+        <div class="quick-grid">
+            <a href="new_booking.html" class="quick-tile">
+                <div class="quick-tile-icon">➕</div>
+                <div><div class="quick-tile-label">New Booking</div><div class="quick-tile-sub">Register patient</div></div>
+            </a>
+            <a href="pending_results.html" class="quick-tile">
+                <div class="quick-tile-icon">🔬</div>
+                <div><div class="quick-tile-label">Enter Results</div><div class="quick-tile-sub">Pending tests</div></div>
+            </a>
+            <a href="patient_history.html" class="quick-tile">
+                <div class="quick-tile-icon">📁</div>
+                <div><div class="quick-tile-label">Patient History</div><div class="quick-tile-sub">Search records</div></div>
+            </a>
+            <a href="analytics.html" class="quick-tile">
+                <div class="quick-tile-icon">📈</div>
+                <div><div class="quick-tile-label">Analytics</div><div class="quick-tile-sub">Revenue & trends</div></div>
+            </a>
+        </div>
+
+        <!-- Stats -->
+        <div class="stat-row">
+            <div class="stat-card">
+                <h3>Today's Visits</h3>
+                <p class="stat-val" id="todayPatients">—</p>
+                <div class="stat-sub">↑ In clinic</div>
+            </div>
+            <div class="stat-card">
+                <h3>Pending</h3>
+                <p class="stat-val" style="color:var(--warning);" id="pendingTests">—</p>
+                <div class="stat-sub">Awaiting results</div>
+            </div>
+            <div class="stat-card">
+                <h3>Completed</h3>
+                <p class="stat-val" style="color:var(--primary);" id="completedTests">—</p>
+                <div class="stat-sub">Today</div>
+            </div>
+            <div class="stat-card">
+                <h3>Revenue</h3>
+                <p class="stat-val" style="color:var(--success);" id="todayRevenue">—</p>
+                <div class="stat-sub">Today (net)</div>
+            </div>
+        </div>
+
+        <!-- Today's Queue -->
+        <div style="background:var(--surface); border-radius:var(--radius); padding:18px; border:1px solid var(--border); box-shadow:var(--shadow);">
+            <div style="font-size:13px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:14px;">Today's Queue</div>
+            <div id="recentQueue">
+                <div style="text-align:center; padding:30px; color:var(--text-muted); font-size:13px;">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('dashDate').textContent = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+        const GENDER_COLORS = { Male:'#dbeafe', Female:'#fce7f3', Other:'#ecfdf5' };
+        const GENDER_TEXT   = { Male:'#1e40af', Female:'#be185d', Other:'#065f46' };
+
+        async function loadDashboardData() {
+            try {
+                const [pendingBookings, allBookings] = await Promise.all([
+                    window.api.getPendingBookings(),
+                    window.api.getPatientHistory('')
+                ]);
+
+                const todayStr = new Date().toLocaleDateString();
+                const todayBookings = allBookings.filter(b => new Date(b.date).toLocaleDateString() === todayStr);
+                const completedToday = todayBookings.filter(b => b.status === 'Completed');
+                const todayRev = todayBookings.reduce((sum, b) => sum + (Number(b.total_amount || 0) - Number(b.discount || 0)), 0);
+
+                document.getElementById('todayPatients').textContent   = todayBookings.length;
+                document.getElementById('pendingTests').textContent    = pendingBookings.length;
+                document.getElementById('completedTests').textContent  = completedToday.length;
+                document.getElementById('todayRevenue').textContent    = 'Rs ' + todayRev.toLocaleString();
+
+                const queueEl = document.getElementById('recentQueue');
+                if (!todayBookings.length) {
+                    queueEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;">No bookings today. Tap <strong>New Booking</strong> to start.</div>';
+                    return;
+                }
+
+                queueEl.innerHTML = '';
+                todayBookings.slice(0, 8).forEach(b => {
+                    const time = new Date(b.date).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+                    const done = b.status === 'Completed';
+                    const initials = (b.patient_name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+                    const g = b.gender || 'Other';
+                    const card = document.createElement('div');
+                    card.className = 'queue-card';
+                    card.innerHTML = `
+                        <div class="queue-avatar" style="background:${GENDER_COLORS[g]||'#f3f4f6'}; color:${GENDER_TEXT[g]||'#374151'};">${initials}</div>
+                        <div class="queue-info">
+                            <div class="queue-name">${b.patient_name || 'Unknown'}</div>
+                            <div class="queue-meta">${b.patient_id} · ${time}</div>
+                        </div>
+                        <span class="queue-badge ${done ? 'badge-done' : 'badge-pending'}">${b.status}</span>
+                    `;
+                    queueEl.appendChild(card);
+                });
+            } catch(e) {
+                console.error(e);
+                document.getElementById('recentQueue').innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger);">Failed to load dashboard data.</div>';
+            }
+        }
+
+        window.addEventListener('load', loadDashboardData);
+    </script>
+    <script type="module" src="../assets/firebase_config.js"></script>
+</body>
+</html>

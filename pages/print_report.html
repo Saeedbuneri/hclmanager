@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>HCL Test Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f1f5f9;
+            color: #111827;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* ── Each page is a physical A4-like container ── */
+        .report-page {
+            background: white;
+            width: 100%;
+            max-width: 850px;
+            margin: 0 auto 40px auto;
+            padding: 40px 50px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            page-break-after: always;
+        }
+
+        .report-page:last-child {
+            page-break-after: avoid;
+            margin-bottom: 0;
+        }
+
+        /* ── Header ── */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #1a237e;
+            margin-bottom: 20px;
+        }
+
+        .lab-brand { margin-left: 10px; }
+        .lab-brand h1 {
+            font-size: 22px;
+            color: #1a237e;
+            font-weight: 800;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .lab-brand .lab-subtitle {
+            font-size: 11px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+        .lab-contact { font-size: 11px; color: #4b5563; line-height: 1.4; }
+
+        .patient-access-info {
+            font-size: 11px;
+            color: #4b5563;
+            line-height: 1.5;
+            text-align: right;
+            border: 1px solid #e5e7eb;
+            padding: 6px 10px;
+            border-radius: 4px;
+            background: #f9fafb;
+        }
+
+        /* ── Page Type Badge ── */
+        .page-type-badge {
+            display: inline-block;
+            background: #eef2ff;
+            border-left: 4px solid #1a237e;
+            color: #1a237e;
+            font-size: 14px;
+            font-weight: 800;
+            padding: 5px 14px;
+            margin-bottom: 18px;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+
+        /* ── Patient Info ── */
+        .patient-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 20px;
+            padding: 15px 0;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .patient-box div { font-size: 13px; color: #374151; }
+        .patient-box strong {
+            color: #111827;
+            display: inline-block;
+            width: 120px;
+            font-weight: 600;
+        }
+
+        /* ── Test Section ── */
+        .test-section { margin-bottom: 28px; }
+
+        .test-title {
+            font-size: 14px;
+            color: #1a237e;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: #eef2ff;
+            padding: 5px 12px;
+            border-left: 4px solid #1a237e;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fff;
+            background: #1a237e;
+            text-transform: uppercase;
+        }
+        td {
+            padding: 8px 12px;
+            font-size: 13px;
+            color: #1f2937;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        tr:nth-child(even) td { background-color: #f8fdff; }
+
+        .flag-high { background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 6px; border: 1px solid #fecaca; }
+        .flag-low  { background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 6px; border: 1px solid #bfdbfe; }
+
+        /* ── Comments ── */
+        .comment-box {
+            margin-top: 10px;
+            background: #fffbeb;
+            border-left: 3px solid #f59e0b;
+            padding: 10px 15px;
+            font-size: 12px;
+            color: #92400e;
+            border-radius: 4px;
+        }
+
+        /* ── Footer / Signature ── */
+        .signatures {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 30px;
+            padding-top: 16px;
+            page-break-inside: avoid;
+        }
+        .sign-block { text-align: center; width: 180px; }
+        .sign-line { border-top: 1px solid #111827; margin-bottom: 8px; }
+        .sign-title { font-size: 12px; color: #111827; font-weight: 600; }
+
+        .report-footer {
+            margin-top: 16px;
+            text-align: center;
+            font-size: 10px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 10px;
+            line-height: 1.6;
+            page-break-inside: avoid;
+        }
+
+        /* ── Action buttons (screen only) ── */
+        #actionBar {
+            text-align: center;
+            padding: 24px;
+            background: #1e293b;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            align-items: center;
+        }
+        .btn {
+            background: #1a237e;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-secondary { background: #4b5563; }
+        .btn-success { background: #15803d; }
+
+        /* ── Print overrides ── */
+        @media print {
+            body { background: white; }
+            #actionBar { display: none !important; }
+            .report-page {
+                box-shadow: none;
+                padding: 20px 30px;
+                max-width: 100%;
+                margin: 0;
+            }
+            .test-title { background: #eef2ff !important; border-left: 4px solid #1a237e !important; }
+            th { background: #1a237e !important; color: #fff !important; }
+            tr:nth-child(even) td { background-color: #f8fdff !important; }
+            .patient-access-info { background: #f9fafb !important; }
+            .signatures { page-break-inside: avoid !important; }
+            .report-footer { page-break-inside: avoid !important; }
+            .test-section { page-break-inside: avoid; }
+            @page { margin: 10mm 12mm; }
+        }
+    </style>
+</head>
+<body onload="loadReport()">
+
+    <!-- Screen action bar -->
+    <div id="actionBar" class="no-print">
+        <span style="color:#94a3b8; font-size:13px; font-weight:600;">HCL Report Preview</span>
+        <button class="btn btn-secondary" onclick="downloadPDF()">⬇ Download PDF</button>
+        <button class="btn btn-success" onclick="window.print()">🖨 Print Official Report</button>
+    </div>
+
+    <!-- Pages rendered here by JS -->
+    <div id="pagesContainer" style="padding: 24px 0;">
+        <div style="text-align:center; padding:60px; color:#64748b; font-size:15px;">
+            Preparing report...
+        </div>
+    </div>
+
+    <script>
+        // ── Helper: parse reference range and return status ──────────────────
+        function parseAndCheckRange(value, refRange) {
+            const num = parseFloat(value);
+            if (isNaN(num) || !refRange) return 'Normal';
+            const ref = String(refRange).trim();
+            const match = ref.match(/^([<>]=?)?\s*(-?\d+(?:\.\d+)?)\s*(?:-\s*(-?\d+(?:\.\d+)?))?$/);
+            if (match) {
+                if      (match[1] === '<'  && match[2]) return num <  parseFloat(match[2]) ? 'Normal' : 'High';
+                else if (match[1] === '>'  && match[2]) return num >  parseFloat(match[2]) ? 'Normal' : 'Low';
+                else if (match[2] && match[3]) {
+                    const lo = parseFloat(match[2]), hi = parseFloat(match[3]);
+                    if (num < lo) return 'Low';
+                    if (num > hi) return 'High';
+                    return 'Normal';
+                } else if (match[2]) return num <= parseFloat(match[2]) ? 'Normal' : 'High';
+            }
+            return 'Normal';
+        }
+
+        // ── Build a result cell ───────────────────────────────────────────────
+        function resultCell(rawVal, refRange) {
+            if (!rawVal && rawVal !== 0) {
+                return '<span style="color:#f59e0b; font-style:italic;">Pending</span>';
+            }
+            const status = parseAndCheckRange(rawVal, refRange);
+            if (status === 'High') {
+                return `<span style="color:#dc2626; font-weight:700;">${rawVal}</span> <span class="flag-high">HIGH</span>`;
+            }
+            if (status === 'Low') {
+                return `<span style="color:#2563eb; font-weight:700;">${rawVal}</span> <span class="flag-low">LOW</span>`;
+            }
+            return `<span style="font-weight:600; color:#111827;">${rawVal}</span>`;
+        }
+
+        // ── Build the lab header HTML (reused on each page) ──────────────────
+        function buildHeaderHTML(patientId) {
+            const labName    = localStorage.getItem('labName')    || 'Healthcare Clinical Laboratory';
+            const labAddress = localStorage.getItem('labAddress') || 'Opposite RHC Jowarr, Buner';
+            const labPhone   = localStorage.getItem('labPhone')   || '+92 313 9232928';
+            return `
+            <div class="report-header">
+                <div style="display:flex;align-items:center;gap:15px;">
+                    <img src="../assets/logo.png" alt="HCL Logo" style="width:70px;height:auto;"
+                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIHJ4PSIyMCIgZmlsbD0iIzFhMjM3ZSIvPjxwYXRoIGQ9Ik01MCAyNVY3NU0yNSA1MEg3NSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIxNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+'">
+                    <div class="lab-brand">
+                        <h1>${labName}</h1>
+                        <div class="lab-subtitle">Accredited Medical Laboratory Services | ${labAddress}</div>
+                        <div class="lab-contact">${labAddress}<br>Phone: ${labPhone} | Email: hclonline@gmail.com</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="patient-access-info">
+                        Patient ID: <strong style="color:#1a237e;">${patientId || ''}</strong><br>
+                        <span style="font-size:10px; color:#9ca3af;">Printed: ${new Date().toLocaleString()}</span>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        // ── Build patient info box ────────────────────────────────────────────
+        function buildPatientBox(b) {
+            return `
+            <div class="patient-box">
+                <div><strong>Patient Name:</strong> ${b.patient_name || '-'}</div>
+                <div><strong>Reg. Date:</strong>    ${b.date ? new Date(b.date).toLocaleDateString() : '-'}</div>
+                <div><strong>Patient ID:</strong>   ${b.patient_id || '-'}</div>
+                <div><strong>Gender / Age:</strong> ${b.gender || '-'} / ${b.age || '-'}</div>
+                <div><strong>Referred By:</strong>  ${b.referred_by || 'Self'}</div>
+                <div><strong>Sample Type:</strong>  Blood / Serum</div>
+            </div>`;
+        }
+
+        // ── Build a single test section ───────────────────────────────────────
+        function buildTestSection(res) {
+            const resultsData = res.parameter_data ? JSON.parse(res.parameter_data) : {};
+            const paramsDef   = JSON.parse(res.parameters || '[]');
+            let rows = '';
+
+            if (!res.completed || !res.parameter_data) {
+                rows = `<tr><td colspan="4" style="text-align:center;color:#f59e0b;font-style:italic;padding:14px;">Results Pending...</td></tr>`;
+            } else {
+                paramsDef.forEach(p => {
+                    const raw = resultsData[p.name];
+                    rows += `<tr>
+                        <td><strong>${p.name}</strong></td>
+                        <td>${resultCell(raw, p.ref)}</td>
+                        <td>${p.unit || '-'}</td>
+                        <td>${p.ref  || '-'}</td>
+                    </tr>`;
+                });
+                if (!rows) {
+                    rows = `<tr><td colspan="4" style="text-align:center;color:#9ca3af;">No parameters defined.</td></tr>`;
+                }
+            }
+
+            let commentHtml = '';
+            if (res.comment && String(res.comment).trim()) {
+                commentHtml = `<div class="comment-box"><strong>Note:</strong> ${res.comment}</div>`;
+            }
+
+            return `
+            <div class="test-section">
+                <div class="test-title">${res.test_name}</div>
+                <table>
+                    <thead><tr>
+                        <th style="width:38%;">Test Parameter</th>
+                        <th style="width:22%;">Result</th>
+                        <th style="width:15%;">Unit</th>
+                        <th style="width:25%;">Ref. Interval</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                ${commentHtml}
+            </div>`;
+        }
+
+        // ── Build page footer ─────────────────────────────────────────────────
+        function buildFooter() {
+            return `
+            <div class="signatures">
+                <div class="sign-block">
+                    <div class="sign-line"></div>
+                    <div class="sign-title">Lab Technologist</div>
+                </div>
+            </div>
+            <div class="report-footer">
+                Healthcare Clinical Laboratory - Jowar, Buner | Accredited by Medical Laboratory Standards | ISO 15189:2012 Certified |<br>
+                Address: Opposite RHC Jowarr, Buner | Phone: +92 313 9232928 | Email: hclonline@gmail.com |<br>
+                <!-- Footer text removed -->
+            </div>`;
+        }
+
+        // ── Main: separate small vs large tests (mirrors online.html logic) ───
+        function renderPages(data) {
+            const b = data.booking;
+            const results = data.results || [];
+
+            // Apply any hidden test IDs from URL
+            const urlParams    = new URLSearchParams(window.location.search);
+            const hiddenIds    = (urlParams.get('hide') || '').split(',').filter(Boolean).map(x => x.toString());
+            const visibleTests = results.filter(r => !hiddenIds.includes(String(r.test_id)));
+
+            // ── Separate: small = fewer than 3 params, large = 3+ params ──
+            const smallTests = [];
+            const largeTests = [];
+
+            visibleTests.forEach(res => {
+                const paramCount = JSON.parse(res.parameters || '[]').length;
+                if (paramCount < 3) {
+                    smallTests.push(res);
+                } else {
+                    largeTests.push(res);
+                }
+            });
+
+            const container = document.getElementById('pagesContainer');
+            container.innerHTML = '';
+
+            // ── PAGE 1 (if any): all small tests grouped together ──
+            if (smallTests.length > 0) {
+                const page = document.createElement('div');
+                page.className = 'report-page';
+
+                let inner = buildHeaderHTML(b.patient_id);
+                inner += `<div class="page-type-badge">🔬 Grouped Tests</div>`;
+                inner += buildPatientBox(b);
+
+                smallTests.forEach(res => {
+                    inner += buildTestSection(res);
+                });
+
+                inner += buildFooter();
+                page.innerHTML = inner;
+                container.appendChild(page);
+            }
+
+            // ── SUBSEQUENT PAGES: one per large test ──
+            largeTests.forEach((res, idx) => {
+                const page = document.createElement('div');
+                page.className = 'report-page';
+
+                let inner = buildHeaderHTML(b.patient_id);
+                inner += `<div class="page-type-badge">🧪 ${res.test_name}</div>`;
+                inner += buildPatientBox(b);
+                inner += buildTestSection(res);
+                inner += buildFooter();
+
+                page.innerHTML = inner;
+                container.appendChild(page);
+            });
+
+            // ── Edge case: no tests at all ──
+            if (smallTests.length === 0 && largeTests.length === 0) {
+                const page = document.createElement('div');
+                page.className = 'report-page';
+                page.innerHTML = buildHeaderHTML(b.patient_id)
+                    + buildPatientBox(b)
+                    + `<p style="text-align:center;padding:40px;color:#64748b;">No test parameters configured for this booking.</p>`
+                    + buildFooter();
+                container.appendChild(page);
+            }
+        }
+
+        // ── Entry point ───────────────────────────────────────────────────────
+        async function loadReport() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const bookingId = urlParams.get('db_id') || urlParams.get('id');
+
+            if (!bookingId) {
+                document.getElementById('pagesContainer').innerHTML =
+                    "<p style='color:red;text-align:center;padding:40px;'>Invalid report link.</p>";
+                return;
+            }
+
+            try {
+                let data = null;
+
+                // ── Mock mode for testing ──
+                if (bookingId === 'mock') {
+                    document.title = 'Mock Report Preview';
+                    data = {
+                        booking: {
+                            patient_id: 'HCL-MOCK-001',
+                            patient_name: 'Jane Doe Preview',
+                            date: new Date().toISOString(),
+                            gender: 'Female',
+                            age: '34',
+                            referred_by: 'Dr. Sarah Connor'
+                        },
+                        results: [
+                            {
+                                test_name: 'Blood Sugar (Fasting)',
+                                test_id: 1,
+                                completed: true,
+                                parameter_data: JSON.stringify({ "Fasting Blood Sugar": "125" }),
+                                parameters: JSON.stringify([{ name: "Fasting Blood Sugar", unit: "mg/dL", ref: "70 - 99" }]),
+                                comment: 'Pre-diabetic range. Lifestyle modification advised.'
+                            },
+                            {
+                                test_name: 'Urine R/E',
+                                test_id: 2,
+                                completed: true,
+                                parameter_data: JSON.stringify({ "Color": "Yellow", "Clarity": "Clear" }),
+                                parameters: JSON.stringify([
+                                    { name: "Color",   unit: "", ref: "Pale Yellow" },
+                                    { name: "Clarity", unit: "", ref: "Clear" }
+                                ]),
+                                comment: ''
+                            },
+                            {
+                                test_name: 'Complete Blood Count (CBC)',
+                                test_id: 3,
+                                completed: true,
+                                parameter_data: JSON.stringify({ "WBC": "13.5", "RBC": "4.5", "Hemoglobin": "10.0", "Platelets": "250", "Hematocrit": "42" }),
+                                parameters: JSON.stringify([
+                                    { name: "WBC",        unit: "x10^9/L",  ref: "4.0 - 11.0" },
+                                    { name: "RBC",        unit: "x10^12/L", ref: "4.2 - 5.4" },
+                                    { name: "Hemoglobin", unit: "g/dL",     ref: "12.0 - 16.0" },
+                                    { name: "Platelets",  unit: "x10^9/L",  ref: "150 - 450" },
+                                    { name: "Hematocrit", unit: "%",        ref: "37 - 50" }
+                                ]),
+                                comment: 'Elevated WBC. Hemoglobin low — possible anaemia.'
+                            },
+                            {
+                                test_name: 'Lipid Profile',
+                                test_id: 4,
+                                completed: true,
+                                parameter_data: JSON.stringify({ "Total Cholesterol": "210", "Triglycerides": "145", "HDL Cholesterol": "55", "LDL Cholesterol": "126" }),
+                                parameters: JSON.stringify([
+                                    { name: "Total Cholesterol", unit: "mg/dL", ref: "< 200" },
+                                    { name: "Triglycerides",     unit: "mg/dL", ref: "< 150" },
+                                    { name: "HDL Cholesterol",   unit: "mg/dL", ref: "> 50" },
+                                    { name: "LDL Cholesterol",   unit: "mg/dL", ref: "< 130" }
+                                ]),
+                                comment: ''
+                            }
+                        ]
+                    };
+                } else {
+                    data = await window.api.getBookingReport(bookingId);
+                }
+
+                if (!data || !data.booking) {
+                    document.getElementById('pagesContainer').innerHTML =
+                        "<p style='text-align:center;padding:40px;'>Report data not found.</p>";
+                    return;
+                }
+
+                renderPages(data);
+                document.title = `HCL Report — ${data.booking.patient_name || bookingId}`;
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById('pagesContainer').innerHTML =
+                    "<p style='color:red;text-align:center;padding:40px;'>Error constructing report.</p>";
+            }
+        }
+
+        // ── PDF download (uses api.savePdf if available) ──────────────────────
+        function downloadPDF() {
+            window.print(); // Browser handles PDF on web
+        }
+    </script>
+    <script type="module" src="../assets/firebase_config.js"></script>
+</body>
+</html>

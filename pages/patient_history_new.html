@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <title>Patient History</title>
+    <link rel="stylesheet" href="../assets/style.css">
+    <style>
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn | padding: 10px 20px; background: #e2e8f0; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .tab-btn.active { background: #0ea5e9; color: white; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8fafc; color: #64748b; font-weight: bold; }
+        tr:hover { background: #f1f5f9; }
+        .status-badge { padding: 5px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .status-completed { background: #dcfce7; color: #059669; }
+        .status-pending { background: #fef9c3; color: #d97706; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search-box input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; flex: 1; }
+        .search-box button { padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        
+        /* Modal for Patient Visits */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; overflow-y:auto; padding: 20px 0; }
+        .modal-content { background: white; padding: 30px; border-radius: 10px; width: 800px; max-width: 90%; max-height: 80vh; overflow-y: auto; margin: auto; }
+        .visit-card { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 15px; padding: 15px; }
+        .visit-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px; }
+        .test-check-list { display: flex; flex-direction: column; gap: 8px; }
+        .test-check-item { display: flex; align-items: center; gap: 10px; }
+        .print-btn { background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2 style="text-align:center; padding: 20px; color: #38bdf8;">HCL Dashboard</h2>
+        <ul>
+            <li><a href="dashboard.html">Dashboard Main</a></li>
+            <li><a href="new_booking.html">New Booking</a></li>
+            <li><a href="pending_results.html">Pending Results</a></li>
+            <li><a href="test_manager.html">Test Catalog Manager</a></li>
+            <li><a href="patient_history.html" class="active">Patient History</a></li>
+            <li><a href="admin_settings.html">Admin Settings & Sync</a></li>
+        </ul>
+        <div style="flex-grow: 1;"></div>
+        <ul><li><a href="login.html?clear=1" style="color: #ef4444; border-top: 1px solid #334155;">Logout</a></li></ul>
+    </div>
+    <div class="main-content">
+        <header>
+            <h1>Patient History</h1>
+            <p>Search and view past laboratory reports.</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" id="tabTests" onclick="switchTab('tests')">Group by Tests (Receipts)</button>
+            <button class="tab-btn" id="tabPatients" onclick="switchTab('patients')">Group by Patients</button>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search by Name, Phone or ID..." onkeyup="if(event.key === 'Enter') performSearch()">
+            <button onclick="performSearch()">Search</button>
+        </div>
+
+        <table id="historyTable">
+            <thead>
+                <tr id="tableHeader">
+                    <!-- Dynamic Headers -->
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be injected here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Patient Visits Modal -->
+    <div id="patientVisitsModal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 id="modalPatientName">Patient Visits</h2>
+                <button onclick="closeModal()" style="border:none; background:#ef4444; color:white; padding:5px 10px; border-radius:5px; cursor:pointer;">Close</button>
+            </div>
+            <div id="visitsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'tests';
+
+        async function switchTab(mode) {
+            currentMode = mode;
+            document.getElementById('tabTests').classList.toggle('active', mode === 'tests');
+            document.getElementById('tabPatients').classList.toggle('active', mode === 'patients');
+
+            const thead = document.getElementById('tableHeader');
+            if (mode === 'tests') {
+                thead.innerHTML = `
+                    <th>Date</th>
+                    <th>Patient Info</th>
+                    <th>Contact</th>
+                    <th>Sub. Total</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                `;
+            } else {
+                thead.innerHTML = `
+                    <th>Last Visit</th>
+                    <th>Patient Name</th>
+                    <th>PID</th>
+                    <th>Contact</th>
+                    <th>Total Visits</th>
+                    <th>Action</th>
+                `;
+            }
+            performSearch();
+        }
+
+        async function performSearch() {
+            const tableBody = document.querySelector('#historyTable tbody');
+            tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading...</td></tr>';
+
+            const searchTerm = document.getElementById('searchInput').value;
+
+            try {
+                if (currentMode === 'tests') {
+                    const records = await window.api.getPatientHistory(searchTerm);
+                    tableBody.innerHTML = '';
+                    if(records.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">No records found.</td></tr>';
+                        return;
+                    }
+
+                    records.forEach(booking => {
+                        const dateFormatted = new Date(booking.date).toLocaleString();
+                        const isCompleted = booking.status === 'Completed';
+                        tableBody.innerHTML += `
+                            <tr>
+                                <td>${dateFormatted}</td>
+                                <td>
+                                    <div style="font-weight:bold; color: #0f172a;">${booking.patient_name || 'N/A'}</div>
+                                    <div style="font-size:12px; color: #64748b;">ID: ${booking.patient_id}</div>
+                                    <div style="font-size:12px; color: #2563eb; font-weight: bold; margin-top:2px;">PIN: ${booking.pin || '123456'}</div>
+                                </td>
+                                <td>${booking.contact || 'N/A'}</td>
+                                <td style="font-weight:bold;">Rs. ${booking.total_amount}</td>
+                                <td><span class="status-badge ${isCompleted ? 'status-completed' : 'status-pending'}">${booking.status}</span></td>
+                                <td style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center; border-bottom: none;">
+                                    <button onclick="window.api.openPrintWindow({db_id: '${booking.id}'})" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" ${!isCompleted ? 'disabled opacity="0.5"' : ''}>Print</button> 
+                                    <button onclick="revertBookingLocal('${booking.id}')" style="background:#f59e0b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" ${!isCompleted ? 'disabled opacity="0.5"' : ''}>Edit</button>
+                                    <button onclick="deleteBookingLocal('${booking.id}')" style="background:#ef4444; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">Delete</button>
+                                </td>
+                            </tr>`;
+                    });
+                } else {
+                    const records = await window.api.getPatientHistory(searchTerm ? searchTerm : "ALL_PATIENTS");
+                    tableBody.innerHTML = '';
+
+                    if(records.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">No patients found.</td></tr>';
+                        return;
+                    }
+
+                    let patientMap = new Map();
+                    if (!searchTerm) {
+                        records.forEach(p => patientMap.set(p.patient_id, p));
+                    } else {
+                        records.forEach(b => {
+                            if (!patientMap.has(b.patient_id)) {
+                                patientMap.set(b.patient_id, {
+                                    patient_id: b.patient_id,
+                                    patient_name: b.patient_name,
+                                    contact: b.contact,
+                                    last_visit: b.date,
+                                    total_visits: 1
+                                });
+                            } else {
+                                let p = patientMap.get(b.patient_id);
+                                p.total_visits++;
+                                if (b.date > p.last_visit) p.last_visit = b.date;
+                            }
+                        });
+                    }
+
+                    let patientsAgg = Array.from(patientMap.values()).sort((a,b) => new Date(b.last_visit) - new Date(a.last_visit));
+
+                    patientsAgg.forEach(p => {
+                        const dateRaw = p.last_visit ? new Date(p.last_visit) : null;
+                        const dateStr = dateRaw ? dateRaw.toLocaleDateString() : 'N/A';
+                        tableBody.innerHTML += `
+                            <tr>
+                                <td>${dateStr}</td>
+                                <td style="font-weight:bold;">${p.patient_name || 'N/A'}</td>
+                                <td>${p.patient_id}</td>
+                                <td>${p.contact || 'N/A'}</td>
+                                <td><span style="background:#e2e8f0; padding:2px 8px; border-radius:10px; font-weight:bold;">${p.total_visits}</span></td>
+                                <td>
+                                    <button onclick="openPatientVisits('${p.patient_id}', '${p.patient_name}')" style="background:#8b5cf6; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">View Visits/Tests</button>
+                                </td>
+                            </tr>`
+                    });
+                }
+            } catch(e) {
+                console.error(e);
+                tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading data</td></tr>';
+            }
+        }
+
+        async function openPatientVisits(patientId, name) {
+            document.getElementById('modalPatientName').innerText = `${name} - Visit History`;
+            const container = document.getElementById('visitsContainer');
+            container.innerHTML = '<p style="text-align:center;">Loading visits...</p>';
+            document.getElementById('patientVisitsModal').style.display = 'flex';
+
+            try {
+                const visits = await window.api.getPatientHistory(`VISITS:${patientId}`);
+                container.innerHTML = '';
+
+                if (visits.length === 0) {
+                    container.innerHTML = '<p style="text-align:center;">No visit history found.</p>';
+                    return;
+                }
+
+                for (let booking of visits) {
+                    const report = await window.api.getBookingReport(booking.id);
+                    if (!report || !report.results) continue;
+
+                    const isCompleted = booking.status === 'Completed';
+                    const dStr = new Date(booking.date).toLocaleString();
+
+                    let div = document.createElement('div');
+                    div.className = 'visit-card';
+
+                    let testsHtml = report.results.map(r => `
+                        <label class="test-check-item">
+                            <input type="checkbox" class="chk-test-${booking.id}" value="${r.test_id}" checked>
+                            <span>${r.test_name}</span>
+                        </label>
+                    `).join('');
+
+                    div.innerHTML = `
+                        <div class="visit-header">
+                            <div>
+                                <strong style="font-size:16px;">${dStr}</strong>
+                                <span class="status-badge ${isCompleted ? 'status-completed' : 'status-pending'}" style="margin-left:10px;">${booking.status}</span>
+                            </div>
+                            <div>
+                                <button class="print-btn" onclick="printSelectedTests('${booking.id}')">Print Selected</button>
+                            </div>
+                        </div>
+                        <div class="test-check-list">
+                            ${testsHtml || '<p style="color:#888; font-size:12px;">No specific tests available.</p>'}
+                        </div>
+                    `;
+                    container.appendChild(div);
+                }
+
+            } catch (e) {
+                console.error(e);
+                container.innerHTML = '<p style="color:red; text-align:center;">Error loading visits.</p>';
+            }
+        }
+
+        function printSelectedTests(bookingId) {
+            const checkboxes = document.querySelectorAll(`.chk-test-${bookingId}`);
+            const allUncheckedIds = Array.from(checkboxes).filter(c => !c.checked).map(c => c.value);
+
+            let queryParams = { db_id: bookingId };
+            if (allUncheckedIds.length > 0) {
+                queryParams.hide = allUncheckedIds.join(',');
+            }
+
+            if (allUncheckedIds.length --= checkboxes.length) {
+                alert('Please select at least one test to print.');
+                return;
+            }
+
+            window.api.openPrintWindow(queryParams);
+        }
+
+        function closeModal() {
+            document.getElementById('patientVisitsModal').style.display = 'none';
+        }
+
+        async function revertBookingLocal(id) {
+            if(confirm("Change status to 'Pending' to edit results?")) {
+                await window.api.revertBooking(id);
+                performSearch();
+            }
+        }
+
+        async function deleteBookingLocal(id) {
+            if(confirm('Are you sure you want to delete this booking entirely? This action cannot be undone.')){
+                await window.api.deleteBooking(id);
+                performSearch();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => switchTab('tests'));
+    </script>
+<script type="module" src="../assets/firebase_config.js"></script></body>
+</html>

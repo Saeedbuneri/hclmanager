@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <title>HCL Receipt Slip</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 380px;
+            max-width: 90%;
+            padding: 30px;
+        }
+        .header { text-align: center; margin-bottom: 25px; border-bottom: 2px dashed #ddd; padding-bottom: 15px; }
+        .logo { font-size: 22px; font-weight: 800; color: #333; margin-bottom: 5px; }
+        .subtitle { color: #666; font-size: 13px; }
+        
+        .patient-info { margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; font-size: 14px; }
+        .patient-info div { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .patient-info div:last-child { margin-bottom: 0; }
+        
+        .items { padding: 10px 15px; margin-bottom: 15px; font-size: 14px; }
+        .item-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        
+        .total { font-weight: bold; font-size: 16px; text-align: right; background: #f8f9fa; padding: 15px; border-radius: 8px; color: #333; }
+        
+        .online-portal { text-align: center; margin-top: 25px; background: #eef2f7; padding: 15px; border-radius: 8px; }
+        .online-portal p { color: #667eea; font-weight: bold; margin-bottom: 5px; font-size: 15px; }
+        .online-portal div { font-size: 14px; color: #555; margin-bottom: 3px; }
+        
+        .btn-print { width: 100%; background: #667eea; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; margin-top: 20px; transition: 0.3s; }
+        .btn-print:hover { background: #5a6fe0; }
+        
+        .footer { text-align: center; margin-top: 20px; font-size: 11px; color: #999; }
+
+        /* ── PRINT STYLES ─────────────────────────────────────── */
+        @page {
+            size: 80mm auto;   /* thermal receipt width; height auto */
+            margin: 6mm;
+        }
+        @media print {
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .no-print { display: none !important; }
+
+            html, body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                display: block !important;
+                min-height: unset !important;
+            }
+
+            .container {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* Keep background colours on info boxes */
+            .patient-info { background: #f8f9fa !important; -webkit-print-color-adjust: exact; }
+            .total { background: #f8f9fa !important; -webkit-print-color-adjust: exact; }
+            .online-portal { background: #eef2f7 !important; border: 1px solid #ddd !important; -webkit-print-color-adjust: exact; }
+
+            /* Prevent page-break inside the receipt card */
+            .container { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body onload="loadData()">
+    <div class="container">
+        <div class="header">
+            <div class="logo">Healthcare Clinical Laboratory</div>
+            <div class="subtitle">Jowar, Buner &nbsp;|&nbsp; Ph: +92 313 9232928</div>
+        </div>
+
+        <div class="patient-info">
+            <div><span>Date:</span> <span id="date"></span></div>
+            <div><span>Patient ID:</span> <strong id="hclid"></strong></div>
+            <div><span>Name:</span> <strong id="pname" style="color: #333;"></strong></div>
+        </div>
+
+        <div class="items" id="itemsContainer"></div>
+
+        <div class="total">
+            <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: normal; margin-bottom: 5px;">
+                <span>Subtotal:</span> <span>Rs. <span id="psubtotal">0</span></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: normal; margin-bottom: 5px;">
+                <span>Discount:</span> <span>Rs. <span id="pdiscount">0</span></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; border-top: 1px dotted #ccc; padding-top: 8px; margin-top: 5px; font-size: 17px;">
+                <span>Receipt Total:</span> <span>Rs. <span id="ptotal">0</span></span>
+            </div>
+            <div style="font-size: 11px; color: #888; margin-top: 8px; text-align: center; font-weight: normal;">
+                (Total and discounted price is receipt)
+            </div>
+        </div>
+
+        <div class="online-portal">
+            <p>⬇️ View Online Report ⬇️</p>
+            <div><strong>https://hclonline.vercel.app</strong></div>
+            <div id="qrcode" style="display: flex; justify-content: center; margin: 10px 0;"></div>
+            <div style="margin-top: 8px;">HCL ID: <strong id="portalId"></strong></div>
+            <div>Password: <strong id="portalPin" style="font-size:18px; color: #e74c3c;"></strong></div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;" class="no-print">
+            <button class="btn-print" onclick="window.print()" style="margin-top: 0; flex: 1;">🖨️ Print Slip</button>
+            <button class="btn-print" onclick="saveReceiptPdf()" style="margin-top: 0; flex: 1; background: #10b981;">⬇️ Download PDF</button>
+        </div>
+
+        <div class="footer">
+            Software Developed by Saeed<br>
+            Thank you for choosing HCL.
+        </div>
+    </div>
+
+    <script>
+        function loadData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            document.getElementById('date').innerText = new Date().toLocaleString();
+            document.getElementById('hclid').innerText = urlParams.get('id') || 'HCL----';
+            document.getElementById('portalId').innerText = urlParams.get('id') || 'HCL----';
+            document.getElementById('pname').innerText = urlParams.get('name') || 'Unknown User';
+            document.getElementById('portalPin').innerText = urlParams.get('pin') || '----';
+            
+            document.getElementById('psubtotal').innerText = urlParams.get('subtotal') || urlParams.get('total') || '0';
+            document.getElementById('pdiscount').innerText = urlParams.get('discount') || '0';
+            document.getElementById('ptotal').innerText = urlParams.get('total') || '0';
+
+            const tests = JSON.parse(urlParams.get('tests') || '[]');
+            let itemHTML = '';
+            tests.forEach(t => {
+                itemHTML += `<div class="item-row"><span>${t}</span></div>`;
+            });
+            document.getElementById('itemsContainer').innerHTML = itemHTML;
+
+            const qrcodeContainer = document.getElementById("qrcode");
+            qrcodeContainer.innerHTML = "";
+            new QRCode(qrcodeContainer, {
+                text: "https://hclonline.vercel.app",
+                width: 100,
+                height: 100,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            setTimeout(() => {
+                saveReceiptPdf();
+            }, 800);
+        }
+
+        function saveReceiptPdf() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const filename = 'Receipt_' + (urlParams.get('id') || Date.now()) + '.pdf';
+            
+            if (window.api && window.api.savePdf) {
+                window.api.savePdf(filename.replace('.pdf', ''), 'HCL_Slips');
+            } else {
+                const element = document.querySelector('.container');
+                const noPrintElements = document.querySelectorAll('.no-print');
+                
+                noPrintElements.forEach(el => el.style.display = 'none');
+                element.style.boxShadow = 'none';
+                element.style.borderRadius = '0';
+
+                // The container is 380px wide. We are targeting an 80mm PDF width.
+                // To maintain aspect ratio and fit on exactly 1 page:
+                const ratio = 80 / 380; 
+                const elemHeight = element.scrollHeight || 600;
+                // Add a tiny buffer (1mm) to prevent extreme edge rounding splits
+                const pdfHeightMM = (elemHeight * ratio) + 1;
+
+                const opt = {
+                    margin: 0,
+                    filename: filename,
+                    image: { type: 'jpeg', quality: 1.0 },
+                    html2canvas: { scale: 3, useCORS: true, windowWidth: 380 },
+                    jsPDF: { unit: 'mm', format: [80, pdfHeightMM], orientation: 'portrait' }
+                };
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    noPrintElements.forEach(el => el.style.display = 'flex');
+                    element.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.2)';
+                });
+            }
+        }
+    </script>
+<script type="module" src="../assets/firebase_config.js"></script></body>
+</html>
