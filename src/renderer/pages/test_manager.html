@@ -1,21 +1,30 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>HCL – Test Catalog</title>
-    <link rel="stylesheet" href="../assets/style.css">
-    <script src="../assets/shared.js"></script>
-    <script src="../assets/sidebar.js"></script>
-    <style>
-        .test-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 30px; }
-        .test-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative; }
-        .test-card h3 { color: #1e293b; font-size: 16px; margin-bottom: 10px; }
-        .test-price { font-size: 20px; color: #0ea5e9; font-weight: bold; margin-bottom: 10px; }
-        .test-params { font-size: 12px; color: #64748b; line-height: 1.5; }
-        .edit-btn { position: absolute; top: 15px; right: 15px; color: #0ea5e9; cursor: pointer; text-decoration: underline; font-size: 12px; }
-        .add-new { background: #e0f2fe; border: 2px dashed #38bdf8; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #0284c7; font-weight: bold; text-align: center;}
-        .add-new:hover { background: #bae6fd; }
-    </style>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+        <title>HCL  Test Catalog</title>
+        <link rel="stylesheet" href="../assets/style.css">
+        <script src="../assets/shared.js"></script>
+        <script src="../assets/sidebar.js"></script>
+        <style>
+            .test-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 30px; }
+            .test-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative; }
+            .test-card h3 { color: #1e293b; font-size: 16px; margin-bottom: 10px; }
+            .test-price { font-size: 20px; color: #0ea5e9; font-weight: bold; margin-bottom: 10px; }
+            .test-params { font-size: 12px; color: #64748b; line-height: 1.5; }
+            .edit-btn { position: absolute; top: 15px; right: 15px; color: #0ea5e9; cursor: pointer; text-decoration: underline; font-size: 12px; }
+            .add-new { background: #e0f2fe; border: 2px dashed #38bdf8; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #0284c7; font-weight: bold; text-align: center;}
+            .add-new:hover { background: #bae6fd; }
+            @media (max-width: 768px) {
+                .test-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+                .test-card { padding: 14px !important; }
+                .test-card h3 { font-size: 15px !important; }
+                .test-price { font-size: 16px !important; }
+                .add-new { min-height: 80px !important; }
+                #addModal { min-width: 95vw !important; padding: 10px !important; }
+            }
+        </style>
 </head>
 <body>
     <div id="sidebar-container"></div>

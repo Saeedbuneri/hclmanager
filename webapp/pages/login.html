@@ -51,6 +51,11 @@
                 btn.disabled = false;
             }
         });
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('../sw.js');
+            });
+        }
     </script>
 <script type="module" src="../assets/firebase_config.js"></script></body>
 </html>
