@@ -408,6 +408,19 @@ input:focus, select:focus, textarea:focus {
   /* Hamburger visible */
   .hamburger { display: flex; }
 
+  /* Mobile table header */
+  .mobile-table-header {
+    display: block;
+    background: var(--surface-2);
+    color: var(--primary);
+    font-weight: 800;
+    font-size: 16px;
+    padding: 14px 0 8px 12px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    letter-spacing: 0.5px;
+    margin-bottom: -8px;
+  }
+
   /* Sidebar becomes a slide-in drawer */
   .sidebar {
     transform: translateX(-100%);
@@ -465,6 +478,18 @@ input:focus, select:focus, textarea:focus {
       }
       .queue-table thead {
         display: none;
+      .queue-table,
+      .queue-table tbody,
+      .queue-table tr,
+      .queue-table th,
+      .queue-table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .queue-table thead {
+        display: none !important;
+      }
       }
       .queue-table tr {
         margin-bottom: 16px;
@@ -473,6 +498,20 @@ input:focus, select:focus, textarea:focus {
         border-radius: var(--radius);
         box-shadow: var(--shadow);
         padding: 12px 10px;
+      }
+      .queue-table tr {
+        margin-bottom: 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 12px 10px;
+      }
+      .queue-table tr.empty-row {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        padding: 0;
       }
       .queue-table td {
         padding: 8px 10px;

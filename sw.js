@@ -17,7 +17,7 @@ const ASSETS = [
   '/webapp/pages/print_receipt.html',
   '/webapp/pages/print_report.html',
   // Add icons and images if needed
-  // '/webapp/image.png',
+  // '/webapp/assets/image.png',
 ];
 
 // Install Event - Caching Assets

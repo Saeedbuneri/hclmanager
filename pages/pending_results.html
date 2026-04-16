@@ -78,22 +78,25 @@
 
 <!-- Data Entry Modal -->
 <div class="modal-overlay" id="entryModal">
-    <div class="modal modal-xl">
-        <div class="modal-header">
-            <div>
-                <h3 id="modalTitle">Enter Results</h3>
-                <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
-                    <span style="font-size:13px;color:var(--text-muted);">For <strong id="modalPatient"></strong></span>
-                    <span class="auto-save-badge" id="autosaveBadge">✓ Draft saved</span>
+                <div class="table-wrapper">
+                    <div id="pendingTableMobileHeader" class="mobile-table-header" style="display:none">
+                        <span>Pending Results</span>
+                    </div>
+                    <table class="queue-table">
+                        <thead id="pendingTableHead">
+                            <tr>
+                                <th>HCL ID</th>
+                                <th>Patient</th>
+                                <th>Booked</th>
+                                <th>Tests</th>
+                                <th>Status</th>
+                                <th>Sync</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingTableBody"></tbody>
+                    </table>
                 </div>
-            </div>
-            <div style="display:flex;gap:10px;align-items:center;">
-                <label style="background:var(--secondary);color:white;padding:8px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:600;">
-                    📸 Auto-fill
-                    <input type="file" id="analyzerImage" accept="image/*" style="display:none;" onchange="processImage(this)">
-                </label>
-                <div id="ocrStatus" style="font-size:12px;color:var(--text-muted);display:none;"></div>
-                <button class="modal-close" onclick="closeModal()">×</button>
             </div>
         </div>
 
@@ -125,6 +128,12 @@ let autoSaveTimer   = null;
 async function loadPending() {
     const tbody = document.getElementById('pendingTableBody');
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;"><div class="skeleton skeleton-line" style="width:80%;margin:0 auto;"></div></td></tr>';
+    // Offline/PWA fallback
+    if (!window.api || !window.api.getPendingBookings) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:50px 10px;color:var(--danger);background:transparent;"><div style="font-size:32px;margin-bottom:8px;">⚠️</div>Offline mode: Pending results are not available.</td></tr>';
+        setTitleBadge(0, 'Pending Results');
+        return;
+    }
     try {
         latestPendings = await window.api.getPendingBookings();
         tbody.innerHTML = '';
@@ -393,18 +402,22 @@ async function processImage(input) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    initSidebar('pending_results.html');
+    // Robust sidebar/menu initialization
+    try { initSidebar && initSidebar('pending_results.html'); } catch(e) { /* ignore */ }
     loadPending();
 
     // Enter key navigation inside dynamicInputs
-    document.getElementById('dynamicInputs').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.ctrlKey) {
-            const inputs = Array.from(this.querySelectorAll('.result-input'));
-            const idx = inputs.indexOf(document.activeElement);
-            if (idx > -1 && idx + 1 < inputs.length) { e.preventDefault(); inputs[idx + 1].focus(); }
-            else if (idx === inputs.length - 1) { e.preventDefault(); saveAndSync(); }
-        }
-    });
+    const dynInputs = document.getElementById('dynamicInputs');
+    if (dynInputs) {
+        dynInputs.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.ctrlKey) {
+                const inputs = Array.from(this.querySelectorAll('.result-input'));
+                const idx = inputs.indexOf(document.activeElement);
+                if (idx > -1 && idx + 1 < inputs.length) { e.preventDefault(); inputs[idx + 1].focus(); }
+                else if (idx === inputs.length - 1) { e.preventDefault(); saveAndSync(); }
+            }
+        });
+    }
 });
 </script>
 <script type="module" src="../assets/firebase_config.js"></script></body>
