@@ -150,13 +150,13 @@ async function loadPending() {
             const tr = document.createElement('tr');
             if (isOverdue) tr.classList.add('overdue-row');
             tr.innerHTML = [
-                '<td style="font-weight:800;color:var(--primary);">' + p.patient_id + '</td>',
-                '<td><div style="font-weight:600;">' + p.patient_name + '</div><div style="font-size:11px;color:var(--text-muted);">' + (p.gender || '') + (p.age ? ' · ' + p.age + ' yrs' : '') + '</div></td>',
-                '<td><div>' + new Date(p.date).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</div><div style="font-size:11px;color:var(--text-muted);">' + timeSince(p.date) + (isOverdue ? ' <span style="color:var(--danger);font-size:10px;">LATE</span>' : '') + '</div></td>',
-                '<td><small style="color:var(--text-muted);">' + testsJson.map(t => (t.completed ? '<span style="color:var(--success);">✔ ' : '') + t.test_name + (t.completed ? '</span>' : '')).join(', ') + '</small></td>',
-                '<td><span class="badge ' + statusCls + '">' + statusText + '</span></td>',
-                '<td>' + syncIcon + '</td>',
-                '<td><button class="btn btn-primary btn-sm" onclick="openTestsModal(' + p.id + ')">View / Enter</button></td>'
+                '<td data-label="HCL ID" style="font-weight:800;color:var(--primary);">' + p.patient_id + '</td>',
+                '<td data-label="Patient"><div style="font-weight:600;">' + p.patient_name + '</div><div style="font-size:11px;color:var(--text-muted);">' + (p.gender || '') + (p.age ? ' · ' + p.age + ' yrs' : '') + '</div></td>',
+                '<td data-label="Booked"><div>' + new Date(p.date).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</div><div style="font-size:11px;color:var(--text-muted);">' + timeSince(p.date) + (isOverdue ? ' <span style="color:var(--danger);font-size:10px;">LATE</span>' : '') + '</div></td>',
+                '<td data-label="Tests"><small style="color:var(--text-muted);">' + testsJson.map(t => (t.completed ? '<span style="color:var(--success);">✔ ' : '') + t.test_name + (t.completed ? '</span>' : '')).join(', ') + '</small></td>',
+                '<td data-label="Status"><span class="badge ' + statusCls + '">' + statusText + '</span></td>',
+                '<td data-label="Sync">' + syncIcon + '</td>',
+                '<td data-label="Action"><button class="btn btn-primary btn-sm" onclick="openTestsModal(' + p.id + ')">View / Enter</button></td>'
             ].join('');
             tbody.appendChild(tr);
         });
