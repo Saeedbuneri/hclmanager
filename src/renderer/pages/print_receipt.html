@@ -131,7 +131,7 @@
     </div>
 
     <script>
-        function loadData() {
+        async function loadData() {
             const urlParams = new URLSearchParams(window.location.search);
             document.getElementById('date').innerText = new Date().toLocaleString();
             document.getElementById('hclid').innerText = urlParams.get('id') || 'HCL----';
@@ -145,8 +145,32 @@
 
             const tests = JSON.parse(urlParams.get('tests') || '[]');
             let itemHTML = '';
+            
+            let catalog = [];
+            try {
+                if (window.api && window.api.getTests) {
+                    catalog = await window.api.getTests();
+                }
+            } catch(e) { console.error("Could not fetch test prices", e); }
+
             tests.forEach(t => {
-                itemHTML += `<div class="item-row"><span>${t}</span></div>`;
+                let name = t;
+                let price = '';
+                if (typeof t === 'object' && t !== null) {
+                    name = t.name;
+                    price = t.price !== undefined ? t.price : '';
+                } else if (catalog.length > 0) {
+                    let catItem = catalog.find(x => x.name === name);
+                    if (catItem) {
+                        price = catItem.price;
+                    }
+                }
+                
+                if (price !== '') {
+                    itemHTML += `<div class="item-row"><span>${name}</span><span>Rs. ${price}</span></div>`;
+                } else {
+                    itemHTML += `<div class="item-row"><span>${name}</span></div>`;
+                }
             });
             document.getElementById('itemsContainer').innerHTML = itemHTML;
 
@@ -172,17 +196,9 @@
         function saveReceiptPdf() {
             const urlParams = new URLSearchParams(window.location.search);
             const filename = 'Receipt_' + (urlParams.get('id') || Date.now());
-            
-            // Calculate height off the container.
-            const container = document.querySelector('.container');
-            const hPx = container.scrollHeight || 600;
-            // width: 80mm = 80000 microns. 
-            // height: approx (1px * 264.583 microns/px) + 30,000 microns margin
-            const hMicrons = Math.round(hPx * 264.583) + 30000;
 
             const printOpt = {
                 marginsType: 1, // no margins
-                pageSize: { width: 80000, height: hMicrons },
                 printBackground: true
             };
             window.api.savePdf(filename, 'HCL_Slips', printOpt);

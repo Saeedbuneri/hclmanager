@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="../assets/style.css">
     <script src="../assets/shared.js"></script>
     <script src="../assets/sidebar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         .param-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
         .param-block { background: var(--surface-2); border-radius: var(--radius-sm); padding: 12px 14px; border: 1px solid var(--border); }
@@ -87,6 +88,11 @@
                 </div>
             </div>
             <div style="display:flex;gap:10px;align-items:center;">
+                <label style="background:var(--secondary);color:white;padding:8px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:600;">
+                    📸 Auto-fill
+                    <input type="file" id="analyzerImage" accept="image/*" style="display:none;" onchange="processImage(this)">
+                </label>
+                <div id="ocrStatus" style="font-size:12px;color:var(--text-muted);display:none;"></div>
                 <button class="modal-close" onclick="closeModal()">×</button>
             </div>
         </div>
@@ -266,6 +272,8 @@ async function openDataEntry(dbId, testId, testName, pName, parametersStr, param
         if (existingVal) updateRangeBar(idx, existingVal, minVal, maxVal);
     });
 
+    document.getElementById('analyzerImage').value = '';
+    document.getElementById('ocrStatus').style.display = 'none';
     document.getElementById('testsModal').classList.remove('open');
     document.getElementById('entryModal').classList.add('open');
     setTimeout(() => { const first = container.querySelector('.result-input'); if (first) first.focus(); }, 100);
@@ -353,6 +361,35 @@ async function saveAndSync() {
 
 function printReport() {
     if (currentBookingData) window.api.openPrintWindow('db_id=' + currentBookingData.id);
+}
+
+// ── OCR Auto-fill ───────────────────────────────────────────────
+async function processImage(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const status = document.getElementById('ocrStatus');
+    status.style.display = 'block'; status.textContent = '🔍 Scanning image...';
+    try {
+        const result = await Tesseract.recognize(file, 'eng');
+        const text = result.data.text;
+        const inputs = document.querySelectorAll('#dynamicInputs .result-input');
+        let found = 0;
+        inputs.forEach(el => {
+            const name = el.dataset.name;
+            let matchRegexStr = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const abbrevMatch = name.match(/\(([^)]+)\)/);
+            if (abbrevMatch) {
+                const abbrev = abbrevMatch[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                matchRegexStr = `(?:${matchRegexStr}|${abbrev})`;
+            }
+            const m = text.match(new RegExp(matchRegexStr + '[\\s:]*([0-9]+\\.?[0-9]*)', 'i'));
+            if (m) { el.value = m[1]; el.dispatchEvent(new Event('input')); found++; }
+        });
+        status.textContent = found + ' value(s) auto-filled. Please verify.';
+        setTimeout(() => { status.style.display = 'none'; }, 3000);
+    } catch(err) {
+        status.textContent = '❌ Error reading image.'; status.style.color = '#ef4444';
+    }
 }
 
 window.addEventListener('DOMContentLoaded', () => {

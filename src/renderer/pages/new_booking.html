@@ -375,7 +375,7 @@
             const patient = { id: hclID, pin, name, age: document.getElementById('pAge').value, gender: document.getElementById('pGender').value, phone: document.getElementById('pPhone').value, referred_by: referredBy };
             try {
                 await window.api.saveBookingWithRef(patient, cart, finalTotal, discount, referredBy);
-                const params = new URLSearchParams({ id: hclID, pin, name, subtotal: subTotal, discount, total: finalTotal, tests: JSON.stringify(cart.map(c => c.name)) });
+                const params = new URLSearchParams({ id: hclID, pin, name, subtotal: subTotal, discount, total: finalTotal, tests: JSON.stringify(cart.map(c => ({name: c.name, price: c.price}))) });
                 window.api.openReceiptWindow(params.toString());
                 showToast('Booking saved! Receipt opening...', 'success');
                 cart = []; matchedPatientId = null; matchedPatientPin = null;

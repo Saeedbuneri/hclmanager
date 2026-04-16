@@ -447,7 +447,7 @@
 
             try {
                 await window.api.saveBookingWithRef(patient, cart, finalTotal, discount, referredBy);
-                showInlineReceipt({ id: hclID, pin, name, subTotal, discount, total: finalTotal, tests: cart.map(t => t.name) });
+                showInlineReceipt({ id: hclID, pin, name, subTotal, discount, total: finalTotal, tests: cart.map(t => ({name: t.name, price: t.price})) });
             } catch(e) {
                 showToast('Error saving: ' + e.message, 'error');
             }
@@ -463,7 +463,7 @@
             document.getElementById('rcDiscount').textContent = discount;
             document.getElementById('rcTotal').textContent = total;
             document.getElementById('rcTests').innerHTML = tests.map(t =>
-                `<div class="receipt-row"><span>• ${t}</span></div>`
+                `<div class="receipt-row"><span>• ${t.name}</span><span>Rs.${t.price}</span></div>`
             ).join('');
             document.getElementById('receiptOverlay').classList.add('show');
             // Auto-trigger print after receipt renders

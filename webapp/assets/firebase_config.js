@@ -216,6 +216,7 @@ window.api = {
           discount: discount || 0,
           status: 'Pending',
           test_names: testNames,
+          test_prices: cart.map(c => c.price || 0),
           units_and_ranges: unitsAndRanges,
           test_results: {},
           comments: ""
@@ -377,6 +378,7 @@ let rData = typeof resultJson === 'string' ? JSON.parse(resultJson) : resultJson
               results.push({
                   test_id: idx + 1,
                   test_name: tName,
+                  price: targetV.test_prices ? targetV.test_prices[idx] : null,
                   completed: hasData ? 1 : 0,
                   parameters: JSON.stringify(paramsMapped),
                   parameter_data: hasData ? JSON.stringify(pDataObj) : null,

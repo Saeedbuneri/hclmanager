@@ -1,1 +1,0 @@
-const sqlite3 = require('sqlite3').verbose(); let db = new sqlite3.Database('c:/Users/Dell Pc/.gemini/antigravity/hcl_local.sqlite', sqlite3.OPEN_READONLY); db.get(\SELECT COUNT(*) FROM bookings b WHERE datetime(b.date, 'localtime') >= datetime('now')\, (err, row) => console.log(err, row));

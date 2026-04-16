@@ -356,35 +356,6 @@
             } catch(e) { console.error(e); }
         }
 
-        async function loadDues() {
-            const tbody = document.getElementById('duesTableBody');
-            try {
-                const dues = await window.api.getDues();
-                if (!dues || dues.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--success);padding:20px;">✅ No outstanding dues!</td></tr>';
-                    return;
-                }
-                tbody.innerHTML = dues.map(d => {
-                    const pct = d.total_amount > 0 ? Math.round(((d.amount_paid||0) / d.total_amount)*100) : 100;
-                    return '<tr style="border-bottom:1px solid var(--border);">'+
-                        '<td style="padding:12px 15px;"><strong>' + d.patient_name + '</strong><br><span style="color:var(--text-muted);font-size:11px;">' + d.patient_id + '</span></td>' +
-                        '<td style="padding:12px 15px;">' + fmtDate(d.date) + '</td>' +
-                        '<td style="padding:12px 15px;">Rs ' + (d.total_amount||0).toLocaleString() + '</td>' +
-                        '<td style="padding:12px 15px; color:var(--success); font-weight:600;">Rs ' + (d.amount_paid||0).toLocaleString() + '</td>' +
-                        '<td style="padding:12px 15px; color:var(--danger); font-weight:700;">Rs ' + (d.balance||0).toLocaleString() + '</td>' +
-                        '<td style="padding:12px 15px; text-align:center;"><button class="btn-modern btn-modern-primary" style="padding:6px 12px; margin:0 auto;" onclick="recordDuePayment(' + d.id + ',' + d.balance + ')">Pay Due</button></td></tr>';
-                }).join('');
-            } catch(e) { tbody.innerHTML = '<tr><td colspan="6" style="color:var(--danger);">Error loading dues.</td></tr>'; }
-        }
-
-        async function recordDuePayment(bookingId, balance) {
-            const amount = parseFloat(prompt('Enter payment amount (balance: Rs ' + balance + '):'));
-            if (isNaN(amount) || amount <= 0) return;
-            await window.api.recordPayment(bookingId, amount);
-            showToast('Payment of Rs ' + amount + ' recorded.', 'success');
-            loadDues();
-        }
-
         async function generateMonthlySummaryPDF() {
             const now = new Date();
             const d = await window.api.getMonthlySummary(now.getFullYear(), now.getMonth() + 1);
@@ -413,7 +384,6 @@
         window.addEventListener('DOMContentLoaded', () => {
             initSidebar('analytics.html');
             loadAnalytics('30days');
-            loadDues();
             loadHeatmap();
         });
     </script>

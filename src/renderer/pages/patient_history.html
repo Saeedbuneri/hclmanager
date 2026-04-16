@@ -287,7 +287,7 @@
                 const report = await window.api.getBookingReport(bookingId);
                 let tests = [];
                 if (report && report.results) {
-                    tests = report.results.map(r => r.test_name);
+                    tests = report.results.map(r => ({ name: r.test_name, price: r.price }));
                 }
                 const subtotal = Number(totalAmount) + Number(discount);
                 const params = new URLSearchParams({

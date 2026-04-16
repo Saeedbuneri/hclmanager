@@ -85,6 +85,7 @@ function init() {
         test_id INTEGER,
         parameter_data TEXT,
         completed INTEGER DEFAULT 0,
+        price REAL DEFAULT 0,
         PRIMARY KEY (booking_id, test_id)
       )
     `);
@@ -117,6 +118,8 @@ function init() {
         synced INTEGER DEFAULT 0
       )
     `);
+
+    db.run(`ALTER TABLE results ADD COLUMN price REAL DEFAULT 0`, () => {});
   });
   
   // Seed initial test data if catalog is empty
@@ -310,7 +313,12 @@ async function saveBooking(patient, tests, total, discount = 0) {
 
     // Add tests to results queue
     for (const t of tests) {
-        await run("INSERT INTO results (booking_id, test_id, parameter_data) VALUES (?, ?, ?)", [res.id, t.id || null, JSON.stringify(t)]);
+        try {
+            await run("INSERT INTO results (booking_id, test_id, parameter_data, price) VALUES (?, ?, ?, ?) ON CONFLICT(booking_id, test_id) DO UPDATE SET price = EXCLUDED.price", [res.id, t.id || null, JSON.stringify(t), t.price || 0]);
+        } catch(e) {
+            // fallback in case price column doesn't exist on older db versions despite alter
+            await run("INSERT INTO results (booking_id, test_id, parameter_data) VALUES (?, ?, ?)", [res.id, t.id || null, JSON.stringify(t)]);
+        }
     }
 
     await run('COMMIT');
@@ -381,7 +389,7 @@ async function getBookingReport(id) {
   const booking = await all("SELECT b.*, p.name as patient_name, p.age, p.gender FROM bookings b JOIN patients p ON b.patient_id = p.id WHERE b.id = ?", [id]);
   if (booking.length === 0) return null;
   const results = await all(`
-    SELECT r.test_id, t.name as test_name, t.parameters, r.parameter_data, r.completed 
+    SELECT r.test_id, t.name as test_name, t.parameters, r.parameter_data, r.completed, COALESCE(NULLIF(r.price, 0), t.price) as price 
     FROM results r JOIN tests_catalog t ON r.test_id = t.id 
     WHERE r.booking_id = ?
   `, [id]);
