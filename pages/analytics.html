@@ -1,12 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
-    <title>HCL – Analytics</title>
-    <link rel="stylesheet" href="../assets/style.css">
-    <script src="../assets/shared.js"></script>
-    <script src="../assets/sidebar.js"></script>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+        <title>HCL  Analytics</title>
+        <link rel="stylesheet" href="../assets/style.css">
+        <script src="../assets/shared.js"></script>
+        <script src="../assets/sidebar.js"></script>
+        <style>
+            @media (max-width: 768px) {
+                .an-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+                .an-value { font-size: 20px !important; }
+                .chart-row, .chart-box, .chart-container { grid-template-columns: 1fr !important; padding: 14px !important; }
+                [style*="grid-template-columns:1fr 1fr 1fr"] { grid-template-columns: 1fr !important; }
+            }
+        </style>
 </head>
 <body>
     <div id="sidebar-container"></div>

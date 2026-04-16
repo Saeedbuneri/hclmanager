@@ -133,22 +133,46 @@
     </div>
 
     <script>
-        function loadData() {
+
+
+        async function loadData() {
             const urlParams = new URLSearchParams(window.location.search);
             document.getElementById('date').innerText = new Date().toLocaleString();
             document.getElementById('hclid').innerText = urlParams.get('id') || 'HCL----';
             document.getElementById('portalId').innerText = urlParams.get('id') || 'HCL----';
             document.getElementById('pname').innerText = urlParams.get('name') || 'Unknown User';
             document.getElementById('portalPin').innerText = urlParams.get('pin') || '----';
-            
+
             document.getElementById('psubtotal').innerText = urlParams.get('subtotal') || urlParams.get('total') || '0';
             document.getElementById('pdiscount').innerText = urlParams.get('discount') || '0';
             document.getElementById('ptotal').innerText = urlParams.get('total') || '0';
 
-            const tests = JSON.parse(urlParams.get('tests') || '[]');
+            // 1. If history param is present, use it (array of {name, price})
+            let tests = [];
+            if (urlParams.get('history')) {
+                try { tests = JSON.parse(urlParams.get('history')); } catch(e) { tests = []; }
+            } else {
+                // 2. Otherwise, use tests param (may be names or {name, price})
+                try { tests = JSON.parse(urlParams.get('tests') || '[]'); } catch(e) { tests = []; }
+                // If only names, fetch catalog and fill prices
+                if (tests.length && typeof tests[0] === 'string' && window.api && window.api.getTests) {
+                    try {
+                        const catalog = await window.api.getTests();
+                        tests = tests.map(name => {
+                            const found = catalog.find(t => t.name === name);
+                            return found ? { name, price: found.price } : { name, price: '' };
+                        });
+                    } catch(e) {}
+                }
+            }
+
             let itemHTML = '';
             tests.forEach(t => {
-                itemHTML += `<div class="item-row"><span>${t}</span></div>`;
+                if (typeof t === 'object' && t !== null && 'name' in t) {
+                    itemHTML += `<div class="item-row"><span>${t.name}</span><span>Rs. ${t.price !== undefined ? t.price : ''}</span></div>`;
+                } else {
+                    itemHTML += `<div class="item-row"><span>${t}</span></div>`;
+                }
             });
             document.getElementById('itemsContainer').innerHTML = itemHTML;
 
