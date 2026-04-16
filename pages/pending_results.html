@@ -40,8 +40,8 @@
         </div>
     </div>
 
-    <div class="table-wrapper">
-        <table class="queue-table">
+    <div class="table-wrapper" id="pendingTableWrapper">
+        <table class="queue-table" id="pendingTable">
             <thead>
                 <tr>
                     <th>HCL ID</th>
@@ -55,6 +55,7 @@
             </thead>
             <tbody id="pendingTableBody"></tbody>
         </table>
+        <div id="pendingCards" style="display:none;"></div>
     </div>
 </div>
 
@@ -127,18 +128,24 @@ let autoSaveTimer   = null;
 // ── Load Pending Queue ──────────────────────────────────────────
 async function loadPending() {
     const tbody = document.getElementById('pendingTableBody');
+    const cards = document.getElementById('pendingCards');
+    const table = document.getElementById('pendingTable');
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;"><div class="skeleton skeleton-line" style="width:80%;margin:0 auto;"></div></td></tr>';
+    cards.innerHTML = '';
     // Offline/PWA fallback
     if (!window.api || !window.api.getPendingBookings) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:50px 10px;color:var(--danger);background:transparent;"><div style="font-size:32px;margin-bottom:8px;">⚠️</div>Offline mode: Pending results are not available.</td></tr>';
+        cards.innerHTML = '<div class="pending-card empty">⚠️ Offline mode: Pending results are not available.</div>';
         setTitleBadge(0, 'Pending Results');
         return;
     }
     try {
         latestPendings = await window.api.getPendingBookings();
         tbody.innerHTML = '';
+        cards.innerHTML = '';
         if (latestPendings.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:50px;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">🎉</div>All clear! No pending bookings.</td></tr>';
+            cards.innerHTML = '<div class="pending-card empty">🎉 All clear! No pending bookings.</div>';
             setTitleBadge(0, 'Pending Results');
             return;
         }
@@ -156,6 +163,7 @@ async function loadPending() {
 
             const syncIcon = p.synced ? '<span class="sync-icon synced" title="Synced">☁️</span>' : '<span class="sync-icon pending" title="Not synced">🔄</span>';
 
+            // Table row (desktop)
             const tr = document.createElement('tr');
             if (isOverdue) tr.classList.add('overdue-row');
             tr.innerHTML = [
@@ -168,7 +176,34 @@ async function loadPending() {
                 '<td data-label="Action"><button class="btn btn-primary btn-sm" onclick="openTestsModal(' + p.id + ')">View / Enter</button></td>'
             ].join('');
             tbody.appendChild(tr);
+
+            // Card (mobile)
+            const card = document.createElement('div');
+            card.className = 'pending-card' + (isOverdue ? ' overdue' : '');
+            card.innerHTML = `
+                <div class="pending-card-row"><span class="pending-card-label">HCL ID:</span> <span class="pending-card-value" style="font-weight:800;color:var(--primary);">${p.patient_id}</span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Patient:</span> <span class="pending-card-value">${p.patient_name} <span style="font-size:11px;color:var(--text-muted);">${p.gender || ''}${p.age ? ' · ' + p.age + ' yrs' : ''}</span></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Booked:</span> <span class="pending-card-value">${new Date(p.date).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} <span style="font-size:11px;color:var(--text-muted);">${timeSince(p.date)}${isOverdue ? ' <span style=\"color:var(--danger);font-size:10px;\">LATE</span>' : ''}</span></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Tests:</span> <span class="pending-card-value"><small style="color:var(--text-muted);">${testsJson.map(t => (t.completed ? '<span style=\"color:var(--success);\">✔ ' : '') + t.test_name + (t.completed ? '</span>' : '')).join(', ')}</small></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Status:</span> <span class="pending-card-value"><span class="badge ${statusCls}">${statusText}</span></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Sync:</span> <span class="pending-card-value">${syncIcon}</span></div>
+                <div class="pending-card-row"><button class="btn btn-primary btn-sm" onclick="openTestsModal(${p.id})">View / Enter</button></div>
+            `;
+            cards.appendChild(card);
         });
+
+        // Responsive toggle
+        function toggleView() {
+            if (window.innerWidth <= 768) {
+                table.style.display = 'none';
+                cards.style.display = 'block';
+            } else {
+                table.style.display = 'table';
+                cards.style.display = 'none';
+            }
+        }
+        toggleView();
+        window.addEventListener('resize', toggleView);
     } catch(e) {
         console.error(e);
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:30px;">Error loading bookings. Check backend.</td></tr>';

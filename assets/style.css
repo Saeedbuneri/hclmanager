@@ -1,3 +1,53 @@
+/* ── Pending Results Card (Mobile) ───────────────────────────── */
+.pending-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+  padding: 16px 14px 12px 14px;
+  font-size: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.pending-card.overdue {
+  border-left: 5px solid var(--danger);
+  background: #fef3c7;
+}
+.pending-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.pending-card-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 700;
+  min-width: 80px;
+}
+.pending-card-value {
+  font-size: 15px;
+  color: var(--text);
+  word-break: break-word;
+}
+.pending-card.empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 18px;
+  background: none;
+  border: none;
+  box-shadow: none;
+  margin-top: 32px;
+}
+@media (min-width: 769px) {
+  #pendingCards { display: none !important; }
+}
+@media (max-width: 768px) {
+  #pendingTable { display: none !important; }
+  #pendingCards { display: block !important; }
+}
 /* ================================================================
    HCL Lab Manager — Design System v2.0
    CSS Variables, Dark Mode, Components, Animations
