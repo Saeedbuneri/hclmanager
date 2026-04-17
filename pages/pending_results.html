@@ -40,8 +40,8 @@
         </div>
     </div>
 
-    <div class="table-wrapper">
-        <table class="queue-table">
+    <div class="table-wrapper" id="pendingTableWrapper">
+        <table class="queue-table" id="pendingTable">
             <thead>
                 <tr>
                     <th>HCL ID</th>
@@ -55,6 +55,7 @@
             </thead>
             <tbody id="pendingTableBody"></tbody>
         </table>
+        <div id="pendingCards" style="display:none;"></div>
     </div>
 </div>
 
@@ -78,22 +79,25 @@
 
 <!-- Data Entry Modal -->
 <div class="modal-overlay" id="entryModal">
-    <div class="modal modal-xl">
-        <div class="modal-header">
-            <div>
-                <h3 id="modalTitle">Enter Results</h3>
-                <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
-                    <span style="font-size:13px;color:var(--text-muted);">For <strong id="modalPatient"></strong></span>
-                    <span class="auto-save-badge" id="autosaveBadge">✓ Draft saved</span>
+                <div class="table-wrapper">
+                    <div id="pendingTableMobileHeader" class="mobile-table-header" style="display:none">
+                        <span>Pending Results</span>
+                    </div>
+                    <table class="queue-table">
+                        <thead id="pendingTableHead">
+                            <tr>
+                                <th>HCL ID</th>
+                                <th>Patient</th>
+                                <th>Booked</th>
+                                <th>Tests</th>
+                                <th>Status</th>
+                                <th>Sync</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingTableBody"></tbody>
+                    </table>
                 </div>
-            </div>
-            <div style="display:flex;gap:10px;align-items:center;">
-                <label style="background:var(--secondary);color:white;padding:8px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:600;">
-                    📸 Auto-fill
-                    <input type="file" id="analyzerImage" accept="image/*" style="display:none;" onchange="processImage(this)">
-                </label>
-                <div id="ocrStatus" style="font-size:12px;color:var(--text-muted);display:none;"></div>
-                <button class="modal-close" onclick="closeModal()">×</button>
             </div>
         </div>
 
@@ -124,12 +128,24 @@ let autoSaveTimer   = null;
 // ── Load Pending Queue ──────────────────────────────────────────
 async function loadPending() {
     const tbody = document.getElementById('pendingTableBody');
+    const cards = document.getElementById('pendingCards');
+    const table = document.getElementById('pendingTable');
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;"><div class="skeleton skeleton-line" style="width:80%;margin:0 auto;"></div></td></tr>';
+    cards.innerHTML = '';
+    // Offline/PWA fallback
+    if (!window.api || !window.api.getPendingBookings) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:50px 10px;color:var(--danger);background:transparent;"><div style="font-size:32px;margin-bottom:8px;">⚠️</div>Offline mode: Pending results are not available.</td></tr>';
+        cards.innerHTML = '<div class="pending-card empty">⚠️ Offline mode: Pending results are not available.</div>';
+        setTitleBadge(0, 'Pending Results');
+        return;
+    }
     try {
         latestPendings = await window.api.getPendingBookings();
         tbody.innerHTML = '';
+        cards.innerHTML = '';
         if (latestPendings.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:50px;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">🎉</div>All clear! No pending bookings.</td></tr>';
+            cards.innerHTML = '<div class="pending-card empty">🎉 All clear! No pending bookings.</div>';
             setTitleBadge(0, 'Pending Results');
             return;
         }
@@ -147,19 +163,47 @@ async function loadPending() {
 
             const syncIcon = p.synced ? '<span class="sync-icon synced" title="Synced">☁️</span>' : '<span class="sync-icon pending" title="Not synced">🔄</span>';
 
+            // Table row (desktop)
             const tr = document.createElement('tr');
             if (isOverdue) tr.classList.add('overdue-row');
             tr.innerHTML = [
-                '<td style="font-weight:800;color:var(--primary);">' + p.patient_id + '</td>',
-                '<td><div style="font-weight:600;">' + p.patient_name + '</div><div style="font-size:11px;color:var(--text-muted);">' + (p.gender || '') + (p.age ? ' · ' + p.age + ' yrs' : '') + '</div></td>',
-                '<td><div>' + new Date(p.date).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</div><div style="font-size:11px;color:var(--text-muted);">' + timeSince(p.date) + (isOverdue ? ' <span style="color:var(--danger);font-size:10px;">LATE</span>' : '') + '</div></td>',
-                '<td><small style="color:var(--text-muted);">' + testsJson.map(t => (t.completed ? '<span style="color:var(--success);">✔ ' : '') + t.test_name + (t.completed ? '</span>' : '')).join(', ') + '</small></td>',
-                '<td><span class="badge ' + statusCls + '">' + statusText + '</span></td>',
-                '<td>' + syncIcon + '</td>',
-                '<td><button class="btn btn-primary btn-sm" onclick="openTestsModal(' + p.id + ')">View / Enter</button></td>'
+                '<td data-label="HCL ID" style="font-weight:800;color:var(--primary);">' + p.patient_id + '</td>',
+                '<td data-label="Patient"><div style="font-weight:600;">' + p.patient_name + '</div><div style="font-size:11px;color:var(--text-muted);">' + (p.gender || '') + (p.age ? ' · ' + p.age + ' yrs' : '') + '</div></td>',
+                '<td data-label="Booked"><div>' + new Date(p.date).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</div><div style="font-size:11px;color:var(--text-muted);">' + timeSince(p.date) + (isOverdue ? ' <span style="color:var(--danger);font-size:10px;">LATE</span>' : '') + '</div></td>',
+                '<td data-label="Tests"><small style="color:var(--text-muted);">' + testsJson.map(t => (t.completed ? '<span style="color:var(--success);">✔ ' : '') + t.test_name + (t.completed ? '</span>' : '')).join(', ') + '</small></td>',
+                '<td data-label="Status"><span class="badge ' + statusCls + '">' + statusText + '</span></td>',
+                '<td data-label="Sync">' + syncIcon + '</td>',
+                '<td data-label="Action"><button class="btn btn-primary btn-sm" onclick="openTestsModal(' + p.id + ')">View / Enter</button></td>'
             ].join('');
             tbody.appendChild(tr);
+
+            // Card (mobile)
+            const card = document.createElement('div');
+            card.className = 'pending-card' + (isOverdue ? ' overdue' : '');
+            card.innerHTML = `
+                <div class="pending-card-row"><span class="pending-card-label">HCL ID:</span> <span class="pending-card-value" style="font-weight:800;color:var(--primary);">${p.patient_id}</span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Patient:</span> <span class="pending-card-value">${p.patient_name} <span style="font-size:11px;color:var(--text-muted);">${p.gender || ''}${p.age ? ' · ' + p.age + ' yrs' : ''}</span></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Booked:</span> <span class="pending-card-value">${new Date(p.date).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} <span style="font-size:11px;color:var(--text-muted);">${timeSince(p.date)}${isOverdue ? ' <span style=\"color:var(--danger);font-size:10px;\">LATE</span>' : ''}</span></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Tests:</span> <span class="pending-card-value"><small style="color:var(--text-muted);">${testsJson.map(t => (t.completed ? '<span style=\"color:var(--success);\">✔ ' : '') + t.test_name + (t.completed ? '</span>' : '')).join(', ')}</small></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Status:</span> <span class="pending-card-value"><span class="badge ${statusCls}">${statusText}</span></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Sync:</span> <span class="pending-card-value">${syncIcon}</span></div>
+                <div class="pending-card-row"><button class="btn btn-primary btn-sm" onclick="openTestsModal(${p.id})">View / Enter</button></div>
+            `;
+            cards.appendChild(card);
         });
+
+        // Responsive toggle
+        function toggleView() {
+            if (window.innerWidth <= 768) {
+                table.style.display = 'none';
+                cards.style.display = 'block';
+            } else {
+                table.style.display = 'table';
+                cards.style.display = 'none';
+            }
+        }
+        toggleView();
+        window.addEventListener('resize', toggleView);
     } catch(e) {
         console.error(e);
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:30px;">Error loading bookings. Check backend.</td></tr>';
@@ -393,18 +437,22 @@ async function processImage(input) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    initSidebar('pending_results.html');
+    // Robust sidebar/menu initialization
+    try { initSidebar && initSidebar('pending_results.html'); } catch(e) { /* ignore */ }
     loadPending();
 
     // Enter key navigation inside dynamicInputs
-    document.getElementById('dynamicInputs').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.ctrlKey) {
-            const inputs = Array.from(this.querySelectorAll('.result-input'));
-            const idx = inputs.indexOf(document.activeElement);
-            if (idx > -1 && idx + 1 < inputs.length) { e.preventDefault(); inputs[idx + 1].focus(); }
-            else if (idx === inputs.length - 1) { e.preventDefault(); saveAndSync(); }
-        }
-    });
+    const dynInputs = document.getElementById('dynamicInputs');
+    if (dynInputs) {
+        dynInputs.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.ctrlKey) {
+                const inputs = Array.from(this.querySelectorAll('.result-input'));
+                const idx = inputs.indexOf(document.activeElement);
+                if (idx > -1 && idx + 1 < inputs.length) { e.preventDefault(); inputs[idx + 1].focus(); }
+                else if (idx === inputs.length - 1) { e.preventDefault(); saveAndSync(); }
+            }
+        });
+    }
 });
 </script>
 <script type="module" src="../assets/firebase_config.js"></script></body>
