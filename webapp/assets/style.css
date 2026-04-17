@@ -1,3 +1,53 @@
+/* ── Pending Results Card (Mobile) ───────────────────────────── */
+.pending-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+  padding: 16px 14px 12px 14px;
+  font-size: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.pending-card.overdue {
+  border-left: 5px solid var(--danger);
+  background: #fef3c7;
+}
+.pending-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.pending-card-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 700;
+  min-width: 80px;
+}
+.pending-card-value {
+  font-size: 15px;
+  color: var(--text);
+  word-break: break-word;
+}
+.pending-card.empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 18px;
+  background: none;
+  border: none;
+  box-shadow: none;
+  margin-top: 32px;
+}
+@media (min-width: 769px) {
+  #pendingCards { display: none !important; }
+}
+@media (max-width: 768px) {
+  #pendingTable { display: none !important; }
+  #pendingCards { display: block !important; }
+}
 /* ================================================================
    HCL Lab Manager — Design System v2.0
    CSS Variables, Dark Mode, Components, Animations
@@ -408,6 +458,19 @@ input:focus, select:focus, textarea:focus {
   /* Hamburger visible */
   .hamburger { display: flex; }
 
+  /* Mobile table header */
+  .mobile-table-header {
+    display: block;
+    background: var(--surface-2);
+    color: var(--primary);
+    font-weight: 800;
+    font-size: 16px;
+    padding: 14px 0 8px 12px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    letter-spacing: 0.5px;
+    margin-bottom: -8px;
+  }
+
   /* Sidebar becomes a slide-in drawer */
   .sidebar {
     transform: translateX(-100%);
@@ -452,6 +515,82 @@ input:focus, select:focus, textarea:focus {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
+      /* Responsive card layout for pending results table */
+      .queue-table,
+      .queue-table thead,
+      .queue-table tbody,
+      .queue-table tr,
+      .queue-table th,
+      .queue-table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .queue-table thead {
+        display: none;
+      .queue-table,
+      .queue-table tbody,
+      .queue-table tr,
+      .queue-table th,
+      .queue-table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .queue-table thead {
+        display: none !important;
+      }
+      }
+      .queue-table tr {
+        margin-bottom: 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 12px 10px;
+      }
+      .queue-table tr {
+        margin-bottom: 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 12px 10px;
+      }
+      .queue-table tr.empty-row {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+      }
+      .queue-table td {
+        padding: 8px 10px;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        position: relative;
+        font-size: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .queue-table td:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+      .queue-table td:before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: var(--text-muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        margin-right: 10px;
+        flex-shrink: 0;
+        min-width: 90px;
+        display: inline-block;
+      }
+      .queue-table tr:hover td {
+        background: var(--surface-2);
+      }
     margin-bottom: 12px;
     padding: 14px;
     box-shadow: var(--shadow);

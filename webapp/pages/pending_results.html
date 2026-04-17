@@ -10,20 +10,47 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         .param-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
-        .param-block { background: var(--surface-2); border-radius: var(--radius-sm); padding: 12px 14px; border: 1px solid var(--border); }
+        .param-block { background: var(--surface-2); border-radius: var(--radius-sm); padding: 12px 14px; border: 1px solid var(--border); margin-bottom: 12px; }
         .param-label { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
         .param-ref   { font-size: 10px; color: var(--text-light); }
-        .prev-val    { font-size: 10px; color: var(--info); font-weight: 600; }
-        .result-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 15px; font-weight: 700; background: var(--surface); color: var(--text); transition: all 0.2s; font-family: var(--font); }
+        .prev-val    { font-size: 10px; color: var(--info); font-weight: 600; margin-bottom: 4px; }
+        .result-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 15px; font-weight: 700; background: var(--surface); color: var(--text); transition: all 0.2s; font-family: var(--font); box-sizing: border-box; }
         .result-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14,165,233,0.12); }
         .result-input.hi { border-color: var(--danger); color: var(--danger); background: #fef2f2; }
         .result-input.lo { border-color: var(--info); color: var(--info); background: #e0f2fe; }
         .overdue-row td { background: #fef3c7 !important; }
-        .auto-save-badge { font-size: 11px; color: var(--success); font-weight: 600; opacity: 0; transition: opacity 0.4s; }
+        .auto-save-badge { font-size: 11px; color: var(--success); font-weight: 600; opacity: 0; transition: opacity 0.4s; margin-left: 10px; }
         .auto-save-badge.show { opacity: 1; }
         .test-group { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 18px; overflow: hidden; }
         .test-group-header { background: var(--surface-2); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
         .test-group-header h4 { font-size: 14px; font-weight: 700; margin: 0; }
+        .range-indicator { margin-top: 6px; }
+        .range-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .range-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+        .range-bar-fill.normal { background: var(--success, #22c55e); }
+        .range-bar-fill.high   { background: var(--danger, #ef4444); }
+        .range-bar-fill.low    { background: var(--info, #0ea5e9); }
+        .ocr-status { font-size: 12px; color: var(--text-muted); margin-top: 6px; padding: 6px 10px; background: var(--surface-2); border-radius: var(--radius-sm); }
+        /* Responsive table */
+        @media (max-width: 768px) {
+            #pendingTable { display: none !important; }
+            #pendingCards { display: block !important; }
+        }
+        @media (min-width: 769px) {
+            #pendingTable { display: table !important; }
+            #pendingCards { display: none !important; }
+        }
+        .pending-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; }
+        .pending-card.overdue { border-color: var(--warning, #f59e0b); background: #fef3c7; }
+        .pending-card.empty   { text-align: center; color: var(--text-muted); padding: 40px; }
+        .pending-card-row     { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; font-size: 14px; }
+        .pending-card-label   { color: var(--text-muted); font-size: 12px; font-weight: 600; min-width: 70px; }
+        .pending-card-value   { flex: 1; text-align: right; }
+        .test-list-item       { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+        .test-list-item:last-child { border-bottom: none; }
+        .test-list-item.test-pending:hover { background: var(--surface-2); }
+        .test-list-item.test-completed { opacity: 0.65; cursor: default; }
+        .mt-3 { margin-top: 16px; }
     </style>
 </head>
 <body>
@@ -40,8 +67,8 @@
         </div>
     </div>
 
-    <div class="table-wrapper">
-        <table class="queue-table">
+    <div class="table-wrapper" id="pendingTableWrapper">
+        <table class="queue-table" id="pendingTable">
             <thead>
                 <tr>
                     <th>HCL ID</th>
@@ -55,10 +82,11 @@
             </thead>
             <tbody id="pendingTableBody"></tbody>
         </table>
+        <div id="pendingCards" style="display:none;"></div>
     </div>
 </div>
 
-<!-- Tests List Modal -->
+<!-- ── Tests List Modal ─────────────────────────────────────────── -->
 <div class="modal-overlay" id="testsModal">
     <div class="modal modal-lg">
         <div class="modal-header">
@@ -76,41 +104,44 @@
     </div>
 </div>
 
-<!-- Data Entry Modal -->
+<!-- ── Data Entry Modal ─────────────────────────────────────────── -->
 <div class="modal-overlay" id="entryModal">
-    <div class="modal modal-xl">
+    <div class="modal modal-lg">
         <div class="modal-header">
             <div>
                 <h3 id="modalTitle">Enter Results</h3>
-                <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
-                    <span style="font-size:13px;color:var(--text-muted);">For <strong id="modalPatient"></strong></span>
-                    <span class="auto-save-badge" id="autosaveBadge">✓ Draft saved</span>
-                </div>
+                <p id="modalPatient" style="color:var(--text-muted);font-size:13px;margin-top:4px;"></p>
             </div>
-            <div style="display:flex;gap:10px;align-items:center;">
-                <label style="background:var(--secondary);color:white;padding:8px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:600;">
-                    📸 Auto-fill
-                    <input type="file" id="analyzerImage" accept="image/*" style="display:none;" onchange="processImage(this)">
-                </label>
-                <div id="ocrStatus" style="font-size:12px;color:var(--text-muted);display:none;"></div>
-                <button class="modal-close" onclick="closeModal()">×</button>
-            </div>
+            <button class="modal-close" onclick="closeModal()">×</button>
         </div>
 
-        <input type="hidden" id="currentBookingId">
-        <input type="hidden" id="currentTestId">
+        <div style="padding: 16px 20px; overflow-y: auto; max-height: 60vh;">
+            <input type="hidden" id="currentBookingId">
+            <input type="hidden" id="currentTestId">
 
-        <!-- Parameter inputs rendered here -->
-        <div id="dynamicInputs"></div>
+            <!-- OCR image upload -->
+            <div style="margin-bottom: 14px;">
+                <label style="font-size:12px;font-weight:700;color:var(--text-muted);">📷 Auto-fill from image (optional)</label>
+                <input type="file" id="analyzerImage" accept="image/*" onchange="processImage(this)"
+                       style="display:block;margin-top:6px;font-size:13px;">
+                <div id="ocrStatus" class="ocr-status" style="display:none;"></div>
+            </div>
 
-        <!-- Comment section -->
-        <div class="form-group mt-3">
-            <label>🗒 Technician Notes / Observation</label>
-            <textarea id="resultComment" rows="2" placeholder="Optional: e.g. Sample haemolysed, repeat advised..."></textarea>
+            <!-- Parameter inputs rendered here -->
+            <div id="dynamicInputs"></div>
+
+            <!-- Comment section -->
+            <div class="form-group mt-3">
+                <label style="font-size:12px;font-weight:700;color:var(--text-muted);">🗒 Technician Notes / Observation</label>
+                <textarea id="resultComment" rows="2"
+                          placeholder="Optional: e.g. Sample haemolysed, repeat advised..."
+                          style="width:100%;margin-top:6px;padding:8px 10px;font-size:14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);box-sizing:border-box;resize:vertical;"></textarea>
+            </div>
         </div>
 
         <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeModal()">← Back to Tests</button>
+            <span class="auto-save-badge" id="autosaveBadge">✓ Draft saved</span>
             <button class="btn btn-primary" onclick="saveAndSync()" id="saveBtn">💾 Save Results</button>
         </div>
     </div>
@@ -124,16 +155,30 @@ let autoSaveTimer   = null;
 // ── Load Pending Queue ──────────────────────────────────────────
 async function loadPending() {
     const tbody = document.getElementById('pendingTableBody');
+    const cards = document.getElementById('pendingCards');
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;"><div class="skeleton skeleton-line" style="width:80%;margin:0 auto;"></div></td></tr>';
+    cards.innerHTML = '';
+
+    if (!window.api || !window.api.getPendingBookings) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:50px 10px;color:var(--danger);background:transparent;"><div style="font-size:32px;margin-bottom:8px;">⚠️</div>Offline mode: Pending results are not available.</td></tr>';
+        cards.innerHTML = '<div class="pending-card empty">⚠️ Offline mode: Pending results are not available.</div>';
+        setTitleBadge && setTitleBadge(0, 'Pending Results');
+        return;
+    }
+
     try {
         latestPendings = await window.api.getPendingBookings();
         tbody.innerHTML = '';
+        cards.innerHTML = '';
+
         if (latestPendings.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:50px;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">🎉</div>All clear! No pending bookings.</td></tr>';
-            setTitleBadge(0, 'Pending Results');
+            cards.innerHTML = '<div class="pending-card empty">🎉 All clear! No pending bookings.</div>';
+            setTitleBadge && setTitleBadge(0, 'Pending Results');
             return;
         }
-        setTitleBadge(latestPendings.length, 'Pending Results');
+
+        setTitleBadge && setTitleBadge(latestPendings.length, 'Pending Results');
 
         latestPendings.forEach(p => {
             const testsJson = JSON.parse(p.tests_json || '[]');
@@ -145,24 +190,52 @@ async function loadPending() {
             const hoursAgo = (Date.now() - new Date(p.date).getTime()) / 3600000;
             const isOverdue = !allDone && hoursAgo > 3;
 
-            const syncIcon = p.synced ? '<span class="sync-icon synced" title="Synced">☁️</span>' : '<span class="sync-icon pending" title="Not synced">🔄</span>';
+            const syncIcon = p.synced
+                ? '<span class="sync-icon synced" title="Synced">☁️</span>'
+                : '<span class="sync-icon pending" title="Not synced">🔄</span>';
 
+            const testList = testsJson.map(t =>
+                t.completed
+                    ? '<span style="color:var(--success);">✔ ' + t.test_name + '</span>'
+                    : t.test_name
+            ).join(', ');
+
+            // Table row
             const tr = document.createElement('tr');
             if (isOverdue) tr.classList.add('overdue-row');
             tr.innerHTML = [
-                '<td style="font-weight:800;color:var(--primary);">' + p.patient_id + '</td>',
-                '<td><div style="font-weight:600;">' + p.patient_name + '</div><div style="font-size:11px;color:var(--text-muted);">' + (p.gender || '') + (p.age ? ' · ' + p.age + ' yrs' : '') + '</div></td>',
-                '<td><div>' + new Date(p.date).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</div><div style="font-size:11px;color:var(--text-muted);">' + timeSince(p.date) + (isOverdue ? ' <span style="color:var(--danger);font-size:10px;">LATE</span>' : '') + '</div></td>',
-                '<td><small style="color:var(--text-muted);">' + testsJson.map(t => (t.completed ? '<span style="color:var(--success);">✔ ' : '') + t.test_name + (t.completed ? '</span>' : '')).join(', ') + '</small></td>',
-                '<td><span class="badge ' + statusCls + '">' + statusText + '</span></td>',
-                '<td>' + syncIcon + '</td>',
-                '<td><button class="btn btn-primary btn-sm" onclick="openTestsModal(' + p.id + ')">View / Enter</button></td>'
+                '<td data-label="HCL ID" style="font-weight:800;color:var(--primary);">' + p.patient_id + '</td>',
+                '<td data-label="Patient"><div style="font-weight:600;">' + p.patient_name + '</div>' +
+                    '<div style="font-size:11px;color:var(--text-muted);">' + (p.gender || '') + (p.age ? ' · ' + p.age + ' yrs' : '') + '</div></td>',
+                '<td data-label="Booked"><div>' + new Date(p.date).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</div>' +
+                    '<div style="font-size:11px;color:var(--text-muted);">' + timeSince(p.date) +
+                    (isOverdue ? ' <span style="color:var(--danger);font-size:10px;">LATE</span>' : '') + '</div></td>',
+                '<td data-label="Tests"><small style="color:var(--text-muted);">' + testList + '</small></td>',
+                '<td data-label="Status"><span class="badge ' + statusCls + '">' + statusText + '</span></td>',
+                '<td data-label="Sync">' + syncIcon + '</td>',
+                '<td data-label="Action"><button class="btn btn-primary btn-sm" onclick="openTestsModal(' + p.id + ')">View / Enter</button></td>'
             ].join('');
             tbody.appendChild(tr);
+
+            // Mobile card
+            const card = document.createElement('div');
+            card.className = 'pending-card' + (isOverdue ? ' overdue' : '');
+            card.innerHTML = `
+                <div class="pending-card-row"><span class="pending-card-label">HCL ID:</span><span class="pending-card-value" style="font-weight:800;color:var(--primary);">${p.patient_id}</span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Patient:</span><span class="pending-card-value">${p.patient_name}<br><span style="font-size:11px;color:var(--text-muted);">${p.gender || ''}${p.age ? ' · ' + p.age + ' yrs' : ''}</span></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Booked:</span><span class="pending-card-value">${new Date(p.date).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} <span style="font-size:11px;color:var(--text-muted);">${timeSince(p.date)}${isOverdue ? ' <span style="color:var(--danger);font-size:10px;">LATE</span>' : ''}</span></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Tests:</span><span class="pending-card-value"><small style="color:var(--text-muted);">${testList}</small></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Status:</span><span class="pending-card-value"><span class="badge ${statusCls}">${statusText}</span></span></div>
+                <div class="pending-card-row"><span class="pending-card-label">Sync:</span><span class="pending-card-value">${syncIcon}</span></div>
+                <div class="pending-card-row" style="margin-top:8px;"><button class="btn btn-primary btn-sm" onclick="openTestsModal(${p.id})">View / Enter</button></div>
+            `;
+            cards.appendChild(card);
         });
+
     } catch(e) {
         console.error(e);
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:30px;">Error loading bookings. Check backend.</td></tr>';
+        cards.innerHTML = '<div class="pending-card empty" style="color:var(--danger);">Error loading bookings. Check backend.</div>';
     }
 }
 
@@ -172,29 +245,45 @@ function openTestsModal(bookingId) {
     if (!p) return;
     currentBookingData = p;
     document.getElementById('testsModalTitle').textContent = 'Tests — ' + p.patient_name;
-    document.getElementById('testsModalPatient').textContent = p.patient_id + ' · Booked ' + fmtDate(p.date);
+    document.getElementById('testsModalPatient').textContent = p.patient_id + ' · Booked ' + (typeof fmtDate === 'function' ? fmtDate(p.date) : new Date(p.date).toLocaleString());
 
     const container = document.getElementById('testListContainer');
     container.innerHTML = '';
     const testsJson = JSON.parse(p.tests_json || '[]');
 
+    if (testsJson.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">No tests found.</p>';
+    }
+
     testsJson.forEach(test => {
-        const isCompleted = test.completed === 1;
+        const isCompleted = test.completed === 1 || test.completed === true;
         const div = document.createElement('div');
         div.className = 'test-list-item ' + (isCompleted ? 'test-completed' : 'test-pending');
-        div.innerHTML = [
-            '<div><strong>' + test.test_name + '</strong></div>',
-            '<div><span class="badge ' + (isCompleted ? 'badge-success' : 'badge-warning') + '">' + (isCompleted ? '✔ Done' : 'Pending') + '</span></div>'
-        ].join('');
+        div.innerHTML =
+            '<div><strong>' + test.test_name + '</strong></div>' +
+            '<div><span class="badge ' + (isCompleted ? 'badge-success' : 'badge-warning') + '">' +
+            (isCompleted ? '✔ Done' : '⏳ Enter Results') + '</span></div>';
+
         if (!isCompleted) {
-            div.onclick = () => openDataEntry(p.id, test.test_id, test.test_name, p.patient_name, test.parameters, test.parameter_data);
+            div.style.cursor = 'pointer';
+            div.onclick = () => openDataEntry(
+                p.id,
+                test.test_id,
+                test.test_name,
+                p.patient_name,
+                test.parameters,
+                test.parameter_data
+            );
         }
         container.appendChild(div);
     });
 
     document.getElementById('testsModal').classList.add('open');
 }
-function closeTestsModal() { document.getElementById('testsModal').classList.remove('open'); }
+
+function closeTestsModal() {
+    document.getElementById('testsModal').classList.remove('open');
+}
 
 // ── Data Entry Modal ────────────────────────────────────────────
 async function openDataEntry(dbId, testId, testName, pName, parametersStr, parameterDataStr) {
@@ -203,12 +292,16 @@ async function openDataEntry(dbId, testId, testName, pName, parametersStr, param
     document.getElementById('modalTitle').textContent = testName;
     document.getElementById('modalPatient').textContent = pName;
     document.getElementById('resultComment').value = '';
+    document.getElementById('analyzerImage').value = '';
+    document.getElementById('ocrStatus').style.display = 'none';
 
-    const params = JSON.parse(parametersStr || '[]');
+    let params = [];
+    try { params = JSON.parse(parametersStr || '[]'); } catch(e) { params = []; }
+
     let paramDataObj = null;
     try { if (parameterDataStr) paramDataObj = JSON.parse(parameterDataStr); } catch(e) {}
 
-    // Try to get previous results for comparison
+    // Previous results for comparison
     let prevResults = {};
     try {
         const hist = await window.api.getPatientHistory('PREV:' + currentBookingData.patient_id + ':' + testId);
@@ -217,7 +310,7 @@ async function openDataEntry(dbId, testId, testName, pName, parametersStr, param
         }
     } catch(e) {}
 
-    // Draft key for auto-save
+    // Draft auto-save
     const draftKey = 'draft_' + dbId + '_' + testId;
     let draft = null;
     try { draft = JSON.parse(localStorage.getItem(draftKey)); } catch(e) {}
@@ -225,15 +318,22 @@ async function openDataEntry(dbId, testId, testName, pName, parametersStr, param
     const container = document.getElementById('dynamicInputs');
     container.innerHTML = '';
 
+    if (params.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px;">No parameters defined for this test.</p>';
+    }
+
     params.forEach((param, idx) => {
-        const existingVal = draft && draft[param.name] !== undefined ? draft[param.name]
-                          : (paramDataObj && paramDataObj[param.name] !== undefined ? paramDataObj[param.name] : '');
+        const existingVal = (draft && draft[param.name] !== undefined)
+            ? draft[param.name]
+            : (paramDataObj && paramDataObj[param.name] !== undefined ? paramDataObj[param.name] : '');
         const prevVal = prevResults[param.name];
 
-        // Parse ref range
+        // Parse reference range
         let minVal = '', maxVal = '';
-        if (param.normalMin !== undefined) { minVal = param.normalMin; maxVal = param.normalMax; }
-        else if (param.ref) {
+        if (param.normalMin !== undefined) {
+            minVal = param.normalMin;
+            maxVal = param.normalMax;
+        } else if (param.ref) {
             const m = param.ref.match(/([0-9.]+)\s*[-–]\s*([0-9.]+)/);
             if (m) { minVal = m[1]; maxVal = m[2]; }
         }
@@ -246,25 +346,27 @@ async function openDataEntry(dbId, testId, testName, pName, parametersStr, param
                 <span class="param-ref">Ref: ${param.ref || '-'}</span>
             </div>
             ${prevVal !== undefined ? '<div class="prev-val">Prev: ' + prevVal + '</div>' : ''}
-              ${param.type === 'posneg' 
-                  ? `<select id="param_${idx}" class="result-input" data-name="${param.name}">
+            ${param.type === 'posneg'
+                ? `<select id="param_${idx}" class="result-input" data-name="${param.name}">
                         <option value="">Select Result...</option>
                         <option value="Negative" ${existingVal === 'Negative' ? 'selected' : ''}>Negative</option>
                         <option value="Positive" ${existingVal === 'Positive' ? 'selected' : ''}>Positive</option>
-                    </select>`
-                  : `<input type="number" step="any" id="param_${idx}"
-                         value="${existingVal}"
-                         class="result-input" data-name="${param.name}"
-                         data-min="${minVal}" data-max="${maxVal}"
-                         placeholder="Enter value">`
-              }
-              <div class="range-indicator" id="rangebar_${idx}" style="display:${existingVal && param.type !== 'posneg' ? 'block' : 'none'};">
-                  <div class="range-bar"><div class="range-bar-fill" id="rfill_${idx}"></div></div>
-              </div>
-          `;
-          container.appendChild(block);
+                   </select>`
+                : `<input type="number" step="any" id="param_${idx}"
+                          value="${existingVal}"
+                          class="result-input"
+                          data-name="${param.name}"
+                          data-min="${minVal}"
+                          data-max="${maxVal}"
+                          placeholder="Enter value">`
+            }
+            <div class="range-indicator" id="rangebar_${idx}" style="display:${(existingVal && param.type !== 'posneg') ? 'block' : 'none'};">
+                <div class="range-bar"><div class="range-bar-fill" id="rfill_${idx}"></div></div>
+            </div>
+        `;
+        container.appendChild(block);
 
-          const inp = block.querySelector('.result-input');
+        const inp = block.querySelector('.result-input');
         inp.addEventListener('input', () => {
             updateRangeBar(idx, inp.value, minVal, maxVal);
             scheduleAutoSave(dbId, testId, params);
@@ -272,34 +374,41 @@ async function openDataEntry(dbId, testId, testName, pName, parametersStr, param
         if (existingVal) updateRangeBar(idx, existingVal, minVal, maxVal);
     });
 
-    document.getElementById('analyzerImage').value = '';
-    document.getElementById('ocrStatus').style.display = 'none';
+    // Close tests modal, open entry modal
     document.getElementById('testsModal').classList.remove('open');
     document.getElementById('entryModal').classList.add('open');
-    setTimeout(() => { const first = container.querySelector('.result-input'); if (first) first.focus(); }, 100);
+
+    setTimeout(() => {
+        const first = container.querySelector('.result-input');
+        if (first) first.focus();
+    }, 150);
 }
 
 function updateRangeBar(idx, val, min, max) {
     const input   = document.getElementById('param_' + idx);
     const barWrap = document.getElementById('rangebar_' + idx);
     const fill    = document.getElementById('rfill_' + idx);
-    if (!input || !barWrap) return;
+    if (!input || !barWrap || !fill) return;
 
     const v = parseFloat(val);
-    if (isNaN(v)) { barWrap.style.display = 'none'; input.className = 'result-input'; return; }
+    if (isNaN(v)) {
+        barWrap.style.display = 'none';
+        input.className = 'result-input';
+        return;
+    }
 
     barWrap.style.display = 'block';
     const minN = parseFloat(min), maxN = parseFloat(max);
     if (!isNaN(minN) && !isNaN(maxN) && maxN > minN) {
-        const pct = Math.min(100, Math.max(0, ((v - minN) / (maxN - minN)) * 100));
+        const pct    = Math.min(100, Math.max(0, ((v - minN) / (maxN - minN)) * 100));
         const isHigh = v > maxN, isLow = v < minN;
-        fill.style.width = pct + '%';
-        fill.className = 'range-bar-fill ' + (isHigh ? 'high' : isLow ? 'low' : 'normal');
-        input.className = 'result-input ' + (isHigh ? 'hi' : isLow ? 'lo' : '');
+        fill.style.width   = pct + '%';
+        fill.className     = 'range-bar-fill ' + (isHigh ? 'high' : isLow ? 'low' : 'normal');
+        input.className    = 'result-input ' + (isHigh ? 'hi' : isLow ? 'lo' : '');
     } else {
         fill.style.width = '50%';
-        fill.className = 'range-bar-fill normal';
-        input.className = 'result-input';
+        fill.className   = 'range-bar-fill normal';
+        input.className  = 'result-input';
     }
 }
 
@@ -314,21 +423,19 @@ function scheduleAutoSave(dbId, testId, params) {
         });
         localStorage.setItem(draftKey, JSON.stringify(draft));
         const badge = document.getElementById('autosaveBadge');
-        badge.classList.add('show');
-        setTimeout(() => badge.classList.remove('show'), 2000);
+        if (badge) { badge.classList.add('show'); setTimeout(() => badge.classList.remove('show'), 2000); }
     }, 800);
 }
 
 function closeModal() {
-    // Clear auto-save timer
     clearTimeout(autoSaveTimer);
     document.getElementById('entryModal').classList.remove('open');
     if (currentBookingData) openTestsModal(currentBookingData.id);
 }
 
 async function saveAndSync() {
-    const id     = document.getElementById('currentBookingId').value;
-    const testId = document.getElementById('currentTestId').value;
+    const id      = document.getElementById('currentBookingId').value;
+    const testId  = document.getElementById('currentTestId').value;
     const comment = document.getElementById('resultComment').value.trim();
 
     const inputs  = document.querySelectorAll('#dynamicInputs .result-input');
@@ -336,26 +443,27 @@ async function saveAndSync() {
     inputs.forEach(inp => { dataObj[inp.dataset.name] = inp.value; });
 
     const btn = document.getElementById('saveBtn');
-    btn.disabled = true; btn.textContent = 'Saving...';
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
 
     try {
         await window.api.completeResult(id, testId, JSON.stringify({ ...dataObj, _comment: comment }));
 
         // Clear draft
-        const draftKey = 'draft_' + id + '_' + testId;
-        localStorage.removeItem(draftKey);
+        localStorage.removeItem('draft_' + id + '_' + testId);
 
         document.getElementById('entryModal').classList.remove('open');
-        showToast('Results saved successfully!', 'success');
+        showToast && showToast('Results saved successfully!', 'success');
         await loadPending();
         const updated = latestPendings.find(b => b.id == id);
         if (updated) openTestsModal(parseInt(id));
         else closeTestsModal();
     } catch(e) {
-        showToast('Failed to save results. Please retry.', 'error');
+        showToast && showToast('Failed to save results. Please retry.', 'error');
         console.error(e);
     } finally {
-        btn.disabled = false; btn.textContent = '💾 Save Results';
+        btn.disabled = false;
+        btn.textContent = '💾 Save Results';
     }
 }
 
@@ -368,10 +476,12 @@ async function processImage(input) {
     const file = input.files[0];
     if (!file) return;
     const status = document.getElementById('ocrStatus');
-    status.style.display = 'block'; status.textContent = '🔍 Scanning image...';
+    status.style.display = 'block';
+    status.style.color   = '';
+    status.textContent   = '🔍 Scanning image...';
     try {
         const result = await Tesseract.recognize(file, 'eng');
-        const text = result.data.text;
+        const text   = result.data.text;
         const inputs = document.querySelectorAll('#dynamicInputs .result-input');
         let found = 0;
         inputs.forEach(el => {
@@ -385,27 +495,34 @@ async function processImage(input) {
             const m = text.match(new RegExp(matchRegexStr + '[\\s:]*([0-9]+\\.?[0-9]*)', 'i'));
             if (m) { el.value = m[1]; el.dispatchEvent(new Event('input')); found++; }
         });
-        status.textContent = found + ' value(s) auto-filled. Please verify.';
-        setTimeout(() => { status.style.display = 'none'; }, 3000);
+        status.textContent = found + ' value(s) auto-filled from image. Please verify before saving.';
+        setTimeout(() => { status.style.display = 'none'; }, 4000);
     } catch(err) {
-        status.textContent = '❌ Error reading image.'; status.style.color = '#ef4444';
+        status.textContent   = '❌ Error reading image. Please try again.';
+        status.style.color   = '#ef4444';
     }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    initSidebar('pending_results.html');
+    try { initSidebar && initSidebar('pending_results.html'); } catch(e) {}
     loadPending();
 
-    // Enter key navigation inside dynamicInputs
+    // Enter key navigation in dynamicInputs
     document.getElementById('dynamicInputs').addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.ctrlKey) {
             const inputs = Array.from(this.querySelectorAll('.result-input'));
             const idx = inputs.indexOf(document.activeElement);
-            if (idx > -1 && idx + 1 < inputs.length) { e.preventDefault(); inputs[idx + 1].focus(); }
-            else if (idx === inputs.length - 1) { e.preventDefault(); saveAndSync(); }
+            if (idx > -1 && idx + 1 < inputs.length) {
+                e.preventDefault();
+                inputs[idx + 1].focus();
+            } else if (idx === inputs.length - 1) {
+                e.preventDefault();
+                saveAndSync();
+            }
         }
     });
 });
 </script>
-<script type="module" src="../assets/firebase_config.js"></script></body>
+<script type="module" src="../assets/firebase_config.js"></script>
+</body>
 </html>
