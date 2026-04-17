@@ -129,14 +129,7 @@
 
             <!-- Parameter inputs rendered here -->
             <div id="dynamicInputs"></div>
-
-            <!-- Comment section -->
-            <div class="form-group mt-3">
-                <label style="font-size:12px;font-weight:700;color:var(--text-muted);">🗒 Technician Notes / Observation</label>
-                <textarea id="resultComment" rows="2"
-                          placeholder="Optional: e.g. Sample haemolysed, repeat advised..."
-                          style="width:100%;margin-top:6px;padding:8px 10px;font-size:14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);box-sizing:border-box;resize:vertical;"></textarea>
-            </div>
+            <!-- The comment section is now only inside the test entry modal -->
         </div>
 
         <div class="modal-footer">
@@ -287,6 +280,11 @@ function closeTestsModal() {
 
 // ── Data Entry Modal ────────────────────────────────────────────
 async function openDataEntry(dbId, testId, testName, pName, parametersStr, parameterDataStr) {
+    // Ensure the entry modal is open before accessing its fields
+    const entryModal = document.getElementById('entryModal');
+    if (entryModal && !entryModal.classList.contains('open')) {
+        entryModal.classList.add('open');
+    }
     document.getElementById('currentBookingId').value = dbId;
     document.getElementById('currentTestId').value    = testId;
     document.getElementById('modalTitle').textContent = testName;
